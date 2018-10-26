@@ -48,6 +48,13 @@ String registrationString[] = {
   "Registered, roaming, CSFB not prefered"  // 9
 };
 
+// Network operator can be set to either:
+// MNO_ATT -- AT&T 
+// MNO_VERIZON -- Verizon
+// MNO_TELSTRA -- Telstra
+// MNO_TMO -- T-Mobile
+const mobile_network_operator_t MOBILE_NETWORK_OPERATOR = MNO_VERIZON;
+
 void setup() {
   Serial.begin(9600);
 
@@ -79,12 +86,7 @@ void setup() {
   Serial.println("ICCID: " + lte.ccid());
     Serial.println();
 
-    // Network operator can be set to either:
-    // MNO_ATT -- AT&T 
-    // MNO_VERIZON -- Verizon
-    // MNO_TELSTRA -- Telstra
-    // MNO_TMO -- T-Mobile
-  if (!lte.setNetwork(MNO_VERIZON)) {
+  if (!lte.setNetwork(MOBILE_NETWORK_OPERATOR)) {
     Serial.println(F("Error setting network. Try cycling power on your Arduino/shield."));
     while (1) ;
   }

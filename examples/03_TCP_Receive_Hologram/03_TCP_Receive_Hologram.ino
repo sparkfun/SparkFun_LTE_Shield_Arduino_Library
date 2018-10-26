@@ -1,5 +1,5 @@
 /*
-  Send an SMS with the SparkFun LTE Cat M1/NB-IoT Shield
+  Receive a TCP message from Hologram server
   By: Jim Lindblom
   SparkFun Electronics
   Date: October 23, 2018
@@ -8,7 +8,8 @@
   Feel like supporting our work? Buy a board from SparkFun!
   https://www.sparkfun.com/products/14997
 
-  This example demonstrates how to send an SMS message with the LTE Shield.
+  This example demonstrates how to to sset your shield/Arduino up as a 
+  TCP server and receive a message from a Hologram server.
 
   Before beginning, you should have your shield connected on a MNO.
   See example 00 for help with that.
@@ -16,7 +17,7 @@
   Once programmed, open the serial monitor, set the baud rate to 9600.
   Use the Hologram dashboard to send a message (via Cloud data) to your device.
   You should see the message relayed to your serial monitor.
-  Make sure the port your sending to matches HOLOGRAM_LISTEN_PORT.
+  Make sure the port you're sending to matches HOLOGRAM_LISTEN_PORT.
   
   Hardware Connections:
   Attach the SparkFun LTE Cat M1/NB-IoT Shield to your Arduino

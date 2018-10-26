@@ -71,11 +71,11 @@ const char LTE_SHIELD_RESPONSE_OK[] = "OK\r\n";
 #define NUM_SUPPORTED_BAUD 6
 const unsigned long LTE_SHIELD_SUPPORTED_BAUD[NUM_SUPPORTED_BAUD] =
 {
+    115200,
     9600,
     19200,
     38400,
     57600,
-    115200,
     230400
 };
 #define LTE_SHIELD_DEFAULT_BAUD_RATE 115200

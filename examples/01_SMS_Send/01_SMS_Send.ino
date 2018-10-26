@@ -54,7 +54,8 @@ void loop() {
     // Read a message until a \n (newline) is received
     if (c == '\n') {
       // Once we receive a newline. send the text.
-      Serial.println("Sending: " + String(message));
+      Serial.println("Sending: \"" + String(message) + "\" to " + 
+        DESTINATION_NUMBER);
       // Call lte.sendSMS(String number, String message) to send an SMS
       // message.
       lte.sendSMS(DESTINATION_NUMBER, message);

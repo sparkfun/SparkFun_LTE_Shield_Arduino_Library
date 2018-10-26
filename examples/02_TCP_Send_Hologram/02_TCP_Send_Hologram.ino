@@ -1,5 +1,5 @@
 /*
-  Send an SMS with the SparkFun LTE Cat M1/NB-IoT Shield
+  Send a TCP message to Hologram
   By: Jim Lindblom
   SparkFun Electronics
   Date: October 23, 2018
@@ -8,7 +8,7 @@
   Feel like supporting our work? Buy a board from SparkFun!
   https://www.sparkfun.com/products/14997
 
-  This example demonstrates how to send an SMS message with the LTE Shield.
+  This example demonstrates how to send TCP messages to a Hologram server
 
   Before beginning, you should have your shield connected on a MNO.
   See example 00 for help with that.
@@ -35,12 +35,11 @@ SoftwareSerial lteSerial(8, 9);
 LTE_Shield lte;
 
 // Plug in your Hologram device key here:
-String HOLOGRAM_DEVICE_KEY = "LC2tG5cf";
+String HOLOGRAM_DEVICE_KEY = "Ab12CdE4";
 
 // These values should remain the same:
 const char HOLOGRAM_URL[] = "cloudsocket.hologram.io";
 const unsigned int HOLOGRAM_PORT = 9999;
-const unsigned int HOLOGRAM_LISTEN_PORT = 4010;
 
 void setup() {
   Serial.begin(9600);
