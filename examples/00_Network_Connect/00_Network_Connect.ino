@@ -70,28 +70,43 @@ void setup() {
     Serial.println(F("LTE Shield connected!"));
   } else {
     Serial.println(F("Unable to communicate with the shield."));
+    Serial.println(F("Make sure the serial switch is in the correct position."));
     Serial.println(F("Manually power-on (hold POWER for 3 seconds) on and try again."));
     while (1) ; // Loop forever on fail
   }
   Serial.println();
 
-  Serial.println("Getting device/SIM info:");
+  Serial.println(F("Getting device/SIM info:"));
   // Print device information:
+  String imei, imsi, ccid;
   // IMEI: International Mobile Equipment Identity -- Unique number to identify phone
-  Serial.println("IMEI: " + lte.imei());
+  imei = lte.imei();
+  Serial.println("IMEI: " + imei);
   // IMSI: International Mobile Subscriber Identity -- Unique number to identify
   // user of a cellular network.
-  Serial.println("IMSI: " + lte.imsi());
+  imsi = lte.imsi();
+  if (imsi.length() < 10) {
+    Serial.println(F("Unable to read the IMSI -- there may be an error."));
+    Serial.println(F("Is your SIM card inserted?"));
+  } else {
+    Serial.println("IMSI: " + imsi);
+  }
   // ICCID: Integrated circuit card identifier -- Unique SIM card serial number.
-  Serial.println("ICCID: " + lte.ccid());
-    Serial.println();
+  ccid = lte.ccid();
+  if (imsi.length() < 10) {
+    Serial.println(F("Unable to read the CCID -- there may be an error."));
+    Serial.println(F("Is your SIM card inserted?"));
+  } else {
+    Serial.println("ICCID: " + ccid);
+  }
+  Serial.println();
 
   if (!lte.setNetwork(MOBILE_NETWORK_OPERATOR)) {
     Serial.println(F("Error setting network. Try cycling power on your Arduino/shield."));
     while (1) ;
   }
 
-  Serial.println("Network set. Ready to go!");
+  Serial.println(F("Network set. Ready to go!"));
   // RSSI: Received signal strength:
   Serial.println("RSSI: " + String(lte.rssi()));
   // Registration Status
@@ -100,10 +115,16 @@ void setup() {
     Serial.println("Network registration: " + registrationString[regStatus]);
   }
   if (regStatus > 0) {
-    Serial.println("All set. Go to the next example!");
+    Serial.println(F("All set. Go to the next example!"));
   }
 }
 
 void loop() {
   // Do nothing. Now that we're registered move on to the next example.
+  if (Serial.available()) {
+    lteSerial.write((char) Serial.read());
+  }
+  if (lteSerial.available()) {
+    Serial.write((char) lteSerial.read());
+  }
 }
