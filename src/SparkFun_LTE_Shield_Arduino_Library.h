@@ -1,12 +1,21 @@
 /*
-  [TODO: DESCRIPTION SENTENCE]
+  Arduino Library for the SparkFun LTE CAT M1/NB-IoT Shield - SARA-R4
 
   SparkFun sells these at its website: www.sparkfun.com
   Do you like this library? Help support SparkFun. Buy a board!
-  https://www.sparkfun.com/products/TODO
+  https://www.sparkfun.com/products/14997
   Written by Jim Lindblom @ SparkFun Electronics, September 5, 2018
   
-  [TODO: DESCRIPTION PARAGRAPH]
+  This Arduino library provides mechanisms to initialize and use
+  the SARA-R4 module over either a SoftwareSerial or hardware serial port.
+
+  Supported features include:
+    * Network registration -- Register your shield on a MNO
+    * SMS messaging -- Send an SMS message
+    * TCP/IP Messaging -- Sending data to servers or setting the SARA
+        module up as a listening socket.
+    * u-blox GPS module support -- Plug in a u-blox GPS module via
+        I2C to read it's location data.
 
   Development environment specifics:
   Arduino IDE 1.8.5
