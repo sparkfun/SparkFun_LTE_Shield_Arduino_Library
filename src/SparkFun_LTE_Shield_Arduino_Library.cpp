@@ -65,6 +65,9 @@ const char LTE_SHIELD_LISTEN_SOCKET[] = "+USOLI";  // Listen for connection on s
 // ### SMS
 const char LTE_SHIELD_MESSAGE_FORMAT[] = "+CMGF";  // Set SMS message format
 const char LTE_SHIELD_SEND_TEXT[] = "+CMGS";       // Send SMS message
+// ### GPS
+const char LTE_SHIELD_GPS_POWER[] = "+UGPS";
+const char LTE_SHIELD_GPS_REQUEST_LOCATION[] = "+ULOC";
 
 const char LTE_SHIELD_RESPONSE_OK[] = "OK\r\n";
 
@@ -192,6 +195,18 @@ boolean LTE_Shield::poll(void)
                 }
                 handled = true;
             }
+        }
+        {
+            if (strstr(lteShieldRXBuffer, "+UULOC")) 
+            {
+                // Found a Location string!
+                Serial.println("Found location string!");
+                Serial.println(lteShieldRXBuffer);
+            }
+            // Look for +UULOC
+            // Either: +UULOC: DD/MM/YYYY,HH:MM:SS.sss,lat.lat,lon.lon,alt,uncertainty,
+                // speed,direction,vertical_acc,sv_used,antenna_status,jamming_status
+            // Or: DD/MM/YYYY,HH:MM:SS.sss,lat.lat,lon.lon,alt,uncertainty
         }
         
         if ( (handled == false) && (strlen(lteShieldRXBuffer) > 2) )
@@ -849,6 +864,109 @@ IPAddress LTE_Shield::lastRemoteIP(void)
     return _lastRemoteIP;
 }
 
+LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
+{
+    LTE_Shield_error_t err;
+    char * command;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_GPS_POWER) + 8);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (enable)
+    {
+        sprintf(command, "%s=1,0,%d", LTE_SHIELD_GPS_POWER, gnss_sys);
+    }
+    else
+    {
+        sprintf(command, "%s=0", LTE_SHIELD_GPS_POWER);
+    }
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 10000);
+
+    free(command);
+    return err;
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnableClock(boolean enable)
+{
+    // AT+UGZDA=<0,1>
+}
+
+LTE_Shield_error_t LTE_Shield::gpsGetClock(struct ClockData * clock)
+{
+    // AT+UGZDA?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnableFix(boolean enable)
+{
+    // AT+UGGGA=<0,1>
+}
+
+LTE_Shield_error_t LTE_Shield::gpsGetFix(struct PositionData * pos)
+{
+    // AT+UGGGA?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnablePos(boolean enable)
+{
+    // AT+UGGLL=<0,1>
+}
+LTE_Shield_error_t LTE_Shield::gpsGetPos(struct PositionData * pos)
+{
+    // AT+UGGLL?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnableSat(boolean enable)
+{
+    // AT+UGGSV=<0,1>
+}
+
+LTE_Shield_error_t LTE_Shield::gpsGetSat(uint8_t * sats)
+{
+    // AT+UGGSV?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnableRmc(boolean enable)
+{
+    // AT+UGRMC=<0,1>
+}
+
+LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct SpeedData * speed,
+    struct DateData * date, boolean * valid)
+{
+    // AT+UGRMC?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsEnableSpeed(boolean enable)
+{
+    // AT+UGVTG=<0,1>
+}
+
+LTE_Shield_error_t LTE_Shield::gpsGetSpeed(struct SpeedData * speed)
+{
+    // AT+UGVTG?
+}
+
+LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, unsigned int accuracy, 
+    boolean detailed)
+{
+    // AT+ULOC=2,<useCellLocate>,<detailed>,<timeout>,<accuracy>
+    LTE_Shield_error_t err;
+    char * command;
+
+    if (timeout > 999) timeout = 999;
+    if (accuracy > 999999) accuracy = 999999;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_GPS_REQUEST_LOCATION) + 24);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=2,3,%d,%d,%d", LTE_SHIELD_GPS_REQUEST_LOCATION, 
+        detailed ? 1 : 0, timeout, accuracy);
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 10000);
+
+    free(command);
+    return err;
+}
+
 /////////////
 // Private //
 /////////////
@@ -883,6 +1001,7 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
 
     _baud = baud;
     setGpioMode(GPIO1, NETWORK_STATUS);
+    setGpioMode(GPIO2, GNSS_SUPPLY_ENABLE);
     setSMSMessageFormat(LTE_SHIELD_MESSAGE_FORMAT_TEXT);
     autoTimeZone(true);
     for (int i = 0; i < LTE_SHIELD_NUM_SOCKETS; i++)

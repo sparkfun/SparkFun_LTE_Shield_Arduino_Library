@@ -66,12 +66,12 @@ typedef enum {
 } mobile_network_operator_t;
 
 typedef enum {
-    LTE_SHIELD_ERROR_INVALID = -1,
-    LTE_SHIELD_ERROR_SUCCESS = 0,
-    LTE_SHIELD_ERROR_OUT_OF_MEMORY,
-    LTE_SHIELD_ERROR_TIMEOUT,
-    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,
-    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,
+    LTE_SHIELD_ERROR_INVALID = -1,         // 1
+    LTE_SHIELD_ERROR_SUCCESS = 0,          // 2
+    LTE_SHIELD_ERROR_OUT_OF_MEMORY,        // 3
+    LTE_SHIELD_ERROR_TIMEOUT,              // 4
+    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,     // 5
+    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,  // 6
     LTE_SHIELD_ERROR_NO_RESPONSE
 } LTE_Shield_error_t;
 #define LTE_SHIELD_SUCCESS LTE_SHIELD_ERROR_SUCCESS
@@ -89,6 +89,40 @@ typedef enum {
     LTE_SHIELD_REGISTRATION_HOME_CSFB_NOT_PREFERRED = 8,
     LTE_SHIELD_REGISTRATION_ROAMING_CSFB_NOT_PREFERRED = 9
 } LTE_Shield_registration_status_t;
+
+struct DateData {
+    uint8_t day;
+    uint8_t month;
+    uint8_t year;
+};
+
+struct TimeData {
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+    uint8_t tzh;
+    uint8_t tzm;
+};
+
+struct ClockData {
+    struct DateData date;
+    struct TimeData time;
+};
+
+struct PositionData {
+    float utc;
+    float lat;
+    float latDir;
+    float lon;
+    float lonDir;
+    float alt;
+};
+
+struct SpeedData {
+    float speed;
+    float tack;
+    float magVar;
+};
 
 typedef enum {
     LTE_SHIELD_TCP = 6,
@@ -194,6 +228,36 @@ public:
     LTE_Shield_error_t socketListen(int socket, unsigned int port);
     IPAddress lastRemoteIP(void);
 
+    // GPS
+    typedef enum {
+        GNSS_SYSTEM_GPS = 1,
+        GNSS_SYSTEM_SBAS = 2,
+        GNSS_SYSTEM_GALILEO = 4,
+        GNSS_SYSTEM_BEIDOU = 8,
+        GNSS_SYSTEM_IMES = 16,
+        GNSS_SYSTEM_QZSS = 32,
+        GNSS_SYSTEM_GLONASS = 64
+    } gnss_system_t;
+    LTE_Shield_error_t gpsPower(boolean enable = true,
+        gnss_system_t gnss_sys = GNSS_SYSTEM_GPS);
+    LTE_Shield_error_t gpsEnableClock(boolean enable = true);
+    LTE_Shield_error_t gpsGetClock(struct ClockData * clock);
+    LTE_Shield_error_t gpsEnableFix(boolean enable = true);
+    LTE_Shield_error_t gpsGetFix(float * lat, float * lon, 
+        unsigned int * alt, uint8_t * quality, uint8_t * sat);
+    LTE_Shield_error_t gpsGetFix(struct PositionData * pos);
+    LTE_Shield_error_t gpsEnablePos(boolean enable = true);
+    LTE_Shield_error_t gpsGetPos(struct PositionData * pos);
+    LTE_Shield_error_t gpsEnableSat(boolean enable = true);
+    LTE_Shield_error_t gpsGetSat(uint8_t * sats);
+    LTE_Shield_error_t gpsEnableRmc(boolean enable = true);
+    LTE_Shield_error_t gpsGetRmc(struct PositionData * pos, struct SpeedData * speed,
+        struct DateData * date, boolean * valid);
+    LTE_Shield_error_t gpsEnableSpeed(boolean enable = true);
+    LTE_Shield_error_t gpsGetSpeed(struct SpeedData * speed);
+
+    LTE_Shield_error_t gpsRequest(unsigned int timeout, unsigned int accuracy, boolean detailed);
+
 private:
 
     HardwareSerial * _hardSerial;
@@ -209,6 +273,7 @@ private:
     
     void (*_socketReadCallback)(int, String);
     void (*_socketCloseCallback)(int);
+    void (*_gpsRequestCallback)(ClockData time, PositionData gps, unsigned long uncertainty);
 
     typedef enum {
         LTE_SHIELD_INIT_STANDARD,
