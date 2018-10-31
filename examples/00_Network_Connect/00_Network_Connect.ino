@@ -121,10 +121,4 @@ void setup() {
 
 void loop() {
   // Do nothing. Now that we're registered move on to the next example.
-  if (Serial.available()) {
-    lteSerial.write((char) Serial.read());
-  }
-  if (lteSerial.available()) {
-    Serial.write((char) lteSerial.read());
-  }
 }
