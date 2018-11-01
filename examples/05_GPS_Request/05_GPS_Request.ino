@@ -39,6 +39,8 @@ unsigned long lastRequest = 0;
 #define GPS_REQUEST_TIMEOUT 30 // Time to turn on GPS module and get a fix (in s)
 #define GPS_REQUEST_ACCURACY 1  // Desired accuracy from GPS module (in meters)
 
+// processGpsRead is provided to the LTE_Shield library via a 
+// callback setter -- setGpsReadCallback. (See end of setup())
 void processGpsRead(ClockData clck, PositionData gps, 
   SpeedData spd, unsigned long uncertainty) {
 
