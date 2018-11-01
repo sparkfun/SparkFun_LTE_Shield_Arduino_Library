@@ -93,13 +93,14 @@ typedef enum {
 struct DateData {
     uint8_t day;
     uint8_t month;
-    uint8_t year;
+    unsigned int year;
 };
 
 struct TimeData {
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
+    unsigned int ms;
     uint8_t tzh;
     uint8_t tzm;
 };
@@ -148,6 +149,8 @@ public:
     boolean poll(void);
     void setSocketReadCallback(void (*socketReadCallback)(int, String));
     void setSocketCloseCallback(void (*socketCloseCallback)(int));
+    void setGpsReadCallback(void (*gpsRequestCallback)(ClockData time, 
+        PositionData gps, SpeedData spd, unsigned long uncertainty));
 
     // Direct write/print to cell serial port
     virtual size_t write(uint8_t c);
@@ -164,6 +167,7 @@ public:
 // Control and status AT commands
     LTE_Shield_error_t reset(void);
     String clock(void);
+    // TODO: Return a clock struct
     LTE_Shield_error_t clock(uint8_t * y, uint8_t * mo, uint8_t * d, 
         uint8_t * h, uint8_t * min, uint8_t * s, uint8_t * tz);
     LTE_Shield_error_t autoTimeZone(boolean enable);
@@ -238,6 +242,7 @@ public:
         GNSS_SYSTEM_QZSS = 32,
         GNSS_SYSTEM_GLONASS = 64
     } gnss_system_t;
+    boolean gpsOn(void);
     LTE_Shield_error_t gpsPower(boolean enable = true,
         gnss_system_t gnss_sys = GNSS_SYSTEM_GPS);
     LTE_Shield_error_t gpsEnableClock(boolean enable = true);
@@ -256,7 +261,7 @@ public:
     LTE_Shield_error_t gpsEnableSpeed(boolean enable = true);
     LTE_Shield_error_t gpsGetSpeed(struct SpeedData * speed);
 
-    LTE_Shield_error_t gpsRequest(unsigned int timeout, unsigned int accuracy, boolean detailed);
+    LTE_Shield_error_t gpsRequest(unsigned int timeout, unsigned int accuracy, boolean detailed = true);
 
 private:
 
@@ -273,7 +278,7 @@ private:
     
     void (*_socketReadCallback)(int, String);
     void (*_socketCloseCallback)(int);
-    void (*_gpsRequestCallback)(ClockData time, PositionData gps, unsigned long uncertainty);
+    void (*_gpsRequestCallback)(ClockData, PositionData, SpeedData, unsigned long);
 
     typedef enum {
         LTE_SHIELD_INIT_STANDARD,

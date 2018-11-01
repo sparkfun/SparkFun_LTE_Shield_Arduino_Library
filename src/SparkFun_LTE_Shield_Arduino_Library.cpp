@@ -147,7 +147,7 @@ boolean LTE_Shield::poll(void)
 
     if (hwAvailable())
     {
-        while (c != '\n') ///(avail < hwAvailable())
+        while (c != '\n')
         {
             if (hwAvailable())
             {
@@ -197,16 +197,39 @@ boolean LTE_Shield::poll(void)
             }
         }
         {
+            ClockData clck;
+            PositionData gps;
+            SpeedData spd;
+            unsigned long uncertainty;
+            int scanNum;
+            unsigned int latH, lonH, altU, speedU, tackU;
+            char latL[10], lonL[10];
+
             if (strstr(lteShieldRXBuffer, "+UULOC")) 
             {
                 // Found a Location string!
-                Serial.println("Found location string!");
-                Serial.println(lteShieldRXBuffer);
+                scanNum = sscanf(lteShieldRXBuffer, 
+                    "+UULOC: %hhu/%hhu/%u,%hhu:%hhu:%hhu.%u,%u.%[^,],%u.%[^,],%u,%lu,%u,%u,*%s",
+                    &clck.date.day, &clck.date.month, &clck.date.year,
+                    &clck.time.hour, &clck.time.minute, &clck.time.second, &clck.time.ms,
+                    &latH, latL, &lonH, lonL, &altU, &uncertainty,
+                    &speedU, &tackU);
+                if (scanNum < 13) return false; // Break out if we didn't find enough
+
+                gps.lat = (float) latH + ((float)atol(latL) / pow(10, strlen(latL)));
+                gps.lon = (float) lonH + ((float)atol(lonL) / pow(10, strlen(lonL)));
+                gps.alt = (float) altU;
+                if (scanNum == 15) // If detailed response, get speed data
+                {
+                    spd.speed = (float) speedU;
+                    spd.tack = (float) tackU;
+                }
+
+                if (_gpsRequestCallback != NULL)
+                {
+                    _gpsRequestCallback(clck, gps, spd, uncertainty);
+                }
             }
-            // Look for +UULOC
-            // Either: +UULOC: DD/MM/YYYY,HH:MM:SS.sss,lat.lat,lon.lon,alt,uncertainty,
-                // speed,direction,vertical_acc,sv_used,antenna_status,jamming_status
-            // Or: DD/MM/YYYY,HH:MM:SS.sss,lat.lat,lon.lon,alt,uncertainty
         }
         
         if ( (handled == false) && (strlen(lteShieldRXBuffer) > 2) )
@@ -229,6 +252,12 @@ void LTE_Shield::setSocketReadCallback(void (*socketReadCallback)(int, String))
 void LTE_Shield::setSocketCloseCallback(void (*socketCloseCallback)(int))
 {
     _socketCloseCallback = socketCloseCallback;
+}
+
+void LTE_Shield::setGpsReadCallback(void (*gpsRequestCallback)(ClockData time, 
+    PositionData gps, SpeedData spd, unsigned long uncertainty))
+{
+    _gpsRequestCallback = gpsRequestCallback;
 }
 
 size_t LTE_Shield::write(uint8_t c)
@@ -864,6 +893,36 @@ IPAddress LTE_Shield::lastRemoteIP(void)
     return _lastRemoteIP;
 }
 
+boolean LTE_Shield::gpsOn(void)
+{
+    LTE_Shield_error_t err;
+    char * command;
+    char * response;
+    boolean on = false;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_GPS_POWER) + 2);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s?", LTE_SHIELD_GPS_POWER);
+
+    response = lte_calloc_char(24);
+    if (response == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response, 
+        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
+    if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        // Example response: "+UGPS: 0" for off "+UGPS: 1,0,1" for on
+        // May be too lazy/simple, but just search for a '1'
+        if (strchr(response, '1') != NULL) on = true;
+    }
+
+    free(command);
+    free(response);
+
+    return on;
+}
+
 LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
 {
     LTE_Shield_error_t err;
@@ -952,6 +1011,12 @@ LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, unsigned int acc
     // AT+ULOC=2,<useCellLocate>,<detailed>,<timeout>,<accuracy>
     LTE_Shield_error_t err;
     char * command;
+
+    // This function will only work if the GPS module is initially turned off.
+    if (gpsOn())
+    {
+        gpsPower(false);
+    }
 
     if (timeout > 999) timeout = 999;
     if (accuracy > 999999) accuracy = 999999;
