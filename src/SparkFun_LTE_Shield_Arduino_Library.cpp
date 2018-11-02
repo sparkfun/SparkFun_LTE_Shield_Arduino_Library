@@ -68,6 +68,7 @@ const char LTE_SHIELD_SEND_TEXT[] = "+CMGS";       // Send SMS message
 // ### GPS
 const char LTE_SHIELD_GPS_POWER[] = "+UGPS";
 const char LTE_SHIELD_GPS_REQUEST_LOCATION[] = "+ULOC";
+const char LTE_SHIELD_GPS_GPRMC[] = "+UGRMC";
 
 const char LTE_SHIELD_RESPONSE_OK[] = "OK\r\n";
 
@@ -93,6 +94,8 @@ const unsigned long LTE_SHIELD_SUPPORTED_BAUD[NUM_SUPPORTED_BAUD] =
 #define LTE_SHIELD_DEFAULT_BAUD_RATE 115200
 
 char lteShieldRXBuffer[128];
+
+static boolean parseGPRMCString(char * rmcString, PositionData * pos, ClockData * clk, SpeedData * spd);
 
 LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
 {
@@ -202,7 +205,7 @@ boolean LTE_Shield::poll(void)
             SpeedData spd;
             unsigned long uncertainty;
             int scanNum;
-            unsigned int latH, lonH, altU, speedU, tackU;
+            unsigned int latH, lonH, altU, speedU, trackU;
             char latL[10], lonL[10];
 
             if (strstr(lteShieldRXBuffer, "+UULOC")) 
@@ -213,7 +216,7 @@ boolean LTE_Shield::poll(void)
                     &clck.date.day, &clck.date.month, &clck.date.year,
                     &clck.time.hour, &clck.time.minute, &clck.time.second, &clck.time.ms,
                     &latH, latL, &lonH, lonL, &altU, &uncertainty,
-                    &speedU, &tackU);
+                    &speedU, &trackU);
                 if (scanNum < 13) return false; // Break out if we didn't find enough
 
                 gps.lat = (float) latH + ((float)atol(latL) / pow(10, strlen(latL)));
@@ -222,7 +225,7 @@ boolean LTE_Shield::poll(void)
                 if (scanNum == 15) // If detailed response, get speed data
                 {
                     spd.speed = (float) speedU;
-                    spd.tack = (float) tackU;
+                    spd.track = (float) trackU;
                 }
 
                 if (_gpsRequestCallback != NULL)
@@ -927,6 +930,14 @@ LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
 {
     LTE_Shield_error_t err;
     char * command;
+    boolean gpsState;
+
+    // Don't turn GPS on/off if it's already on/off
+    gpsState = gpsOn();
+    if ((enable && gpsState) || (!enable && !gpsState))
+    {
+        return LTE_SHIELD_ERROR_SUCCESS;
+    }
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_POWER) + 8);
     if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
@@ -987,12 +998,61 @@ LTE_Shield_error_t LTE_Shield::gpsGetSat(uint8_t * sats)
 LTE_Shield_error_t LTE_Shield::gpsEnableRmc(boolean enable)
 {
     // AT+UGRMC=<0,1>
+    LTE_Shield_error_t err;
+    char * command;
+
+    if (!gpsOn())
+    {
+        err = gpsPower(true);
+        if (err != LTE_SHIELD_ERROR_SUCCESS)
+        {
+            return err;
+        }
+    }
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_GPS_GPRMC) + 3);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=%d", LTE_SHIELD_GPS_GPRMC, enable ? 1 : 0);
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 10000);
+
+    free(command);
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct SpeedData * speed,
-    struct DateData * date, boolean * valid)
+LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct SpeedData * spd,
+    struct ClockData * clk, boolean * valid)
 {
-    // AT+UGRMC?
+    LTE_Shield_error_t err;
+    char * command;
+    char * response;
+    char * rmcBegin;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_GPS_GPRMC) + 2);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s?", LTE_SHIELD_GPS_GPRMC);
+
+    response = lte_calloc_char(96);
+    if (response == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response, 10000);
+    if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        // Fast-forward response string to $GPRMC starter
+        rmcBegin = strstr(response, "$GPRMC");
+        if (rmcBegin == NULL) 
+        {
+            err = LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+        }
+        else
+        {
+            *valid = parseGPRMCString(rmcBegin, pos, clk, spd);
+        }
+    }
+
+    free(command);
+    free(response);
+    return err;
 }
 
 LTE_Shield_error_t LTE_Shield::gpsEnableSpeed(boolean enable)
@@ -1226,17 +1286,14 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     int destIndex = 0;
     unsigned int charsRead = 0;
 
-    //Serial.println("Send command: " + String(command));
     sendCommand(command, at);
     
     timeIn = millis();
-
     while ((!found) && (timeIn + commandTimeout > millis()))
     {
         if (hwAvailable())
         {
             char c = readChar();
-            //Serial.write(c);
             if (responseDest != NULL)
             {
                 responseDest[destIndex++] = c;
@@ -1487,4 +1544,203 @@ LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
 char * LTE_Shield::lte_calloc_char(size_t num)
 {
     return (char *) calloc(num, sizeof(char));
+}
+
+// GPS Helper Functions:
+
+// Read a source string until a delimiter is hit, store the result in destination
+static char * readDataUntil(char * destination, unsigned int destSize, 
+    char * source, char delimiter) {
+    
+    char * strEnd;
+    size_t len;
+
+    strEnd = strchr(source, delimiter);
+
+    if (strEnd != NULL) {
+        len = strEnd - source;
+        memset(destination, 0, destSize);
+        memcpy(destination, source, len);
+    }
+
+    return strEnd;
+}
+
+#define TEMP_NMEA_DATA_SIZE 16
+
+static boolean parseGPRMCString(char * rmcString, PositionData * pos,
+                         ClockData * clk, SpeedData * spd)
+{
+    char * ptr, *search;
+    unsigned long tTemp;
+    char tempData[TEMP_NMEA_DATA_SIZE];
+
+    // Fast-forward test to first value:
+    ptr = strchr(rmcString, ',');
+    ptr++; // Move ptr past first comma
+
+    // If the next character is another comma, there's no time data
+    // Find time:
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    // Next comma should be present and not the next position
+    if ((search != NULL) && (search != ptr)) 
+    {
+        pos->utc = atof(tempData);
+        tTemp = pos->utc;
+        clk->time.hour = tTemp / 10000;
+        tTemp -= ((unsigned long)clk->time.hour * 10000);
+        clk->time.minute = tTemp / 100;
+        tTemp -= ((unsigned long)clk->time.minute * 100);
+        clk->time.second = tTemp;
+    } 
+    else 
+    {
+        pos->utc = 0.0;
+        clk->time.hour = 0;
+        clk->time.minute = 0;
+        clk->time.second = 0;
+    }
+    ptr = search + 1; // Move pointer to next value
+
+    // Find status character:
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    // Should be a single character
+    if ((search != NULL) && (search == ptr + 1)) 
+    {
+        pos->status = *ptr; // Assign char at ptr to status
+    } 
+    else 
+    {
+        pos->status = 'X'; // Made up very bad status
+    }
+    ptr = search + 1;
+
+    // Find latitude:
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        pos->lat = atof(tempData);
+    } 
+    else 
+    {
+        pos->lat = 0.0;
+    }
+    ptr = search + 1;
+    // Find latitude hemishpere
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search == ptr + 1)) 
+    {
+        pos->latDir = *ptr; // Assign char at ptr to status
+    } 
+    else 
+    {
+        pos->latDir = 'X';
+    }
+    ptr = search + 1;
+
+    // Find longitude:
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        pos->lon = atof(tempData);
+    } 
+    else 
+    {
+        pos->lon = 0.0;
+    }
+    ptr = search + 1;
+    // Find latitude hemishpere
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search == ptr + 1)) 
+    {
+        pos->lonDir = *ptr; // Assign char at ptr to status
+    } 
+    else 
+    {
+        pos->lonDir = 'X';
+    }
+    ptr = search + 1;
+
+    // Find speed
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        spd->speed = atof(tempData);
+    } 
+    else 
+    {
+        spd->speed = 0.0;
+    }
+    ptr = search + 1;
+    // Find track
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        spd->track = atof(tempData);
+    } 
+    else 
+    {
+        spd->track = 0.0;
+    }
+    ptr = search + 1;
+
+    // Find date
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        tTemp = atol(tempData);
+        clk->date.day = tTemp / 10000;
+        tTemp -= ((unsigned long)clk->date.day * 10000);
+        clk->date.month = tTemp / 100;
+        tTemp -= ((unsigned long)clk->date.month * 100);
+        clk->date.year = tTemp;
+    } 
+    else 
+    {
+        clk->date.day = 0;
+        clk->date.month = 0;
+        clk->date.year = 0;
+    }
+    ptr = search + 1;
+
+    // Find magnetic variation in degrees:
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search != ptr)) 
+    {
+        spd->magVar = atof(tempData);
+    } 
+    else 
+    {
+        spd->magVar = 0.0;
+    }
+    ptr = search + 1;
+    // Find magnetic variation direction
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
+    if ((search != NULL) && (search == ptr + 1)) 
+    {
+        spd->magVarDir = *ptr; // Assign char at ptr to status
+    } 
+    else 
+    {
+        spd->magVarDir = 'X';
+    }
+    ptr = search + 1;
+
+    // Find position system mode
+    search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, '*');
+    if ((search != NULL) && (search = ptr + 1)) 
+    {
+        pos->mode = *ptr;
+    } 
+    else 
+    {
+        pos->mode = 'X';
+    }
+    ptr = search + 1;
+
+    if (pos->status == 'A')
+    {
+        return true;
+    }
+    return false;
 }

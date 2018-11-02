@@ -66,13 +66,13 @@ typedef enum {
 } mobile_network_operator_t;
 
 typedef enum {
-    LTE_SHIELD_ERROR_INVALID = -1,         // 1
-    LTE_SHIELD_ERROR_SUCCESS = 0,          // 2
-    LTE_SHIELD_ERROR_OUT_OF_MEMORY,        // 3
-    LTE_SHIELD_ERROR_TIMEOUT,              // 4
-    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,     // 5
-    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,  // 6
-    LTE_SHIELD_ERROR_NO_RESPONSE
+    LTE_SHIELD_ERROR_INVALID = -1,         // -1
+    LTE_SHIELD_ERROR_SUCCESS = 0,          // 0
+    LTE_SHIELD_ERROR_OUT_OF_MEMORY,        // 1
+    LTE_SHIELD_ERROR_TIMEOUT,              // 2
+    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,     // 3
+    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,  // 4
+    LTE_SHIELD_ERROR_NO_RESPONSE           // 5
 } LTE_Shield_error_t;
 #define LTE_SHIELD_SUCCESS LTE_SHIELD_ERROR_SUCCESS
 
@@ -113,16 +113,19 @@ struct ClockData {
 struct PositionData {
     float utc;
     float lat;
-    float latDir;
+    char latDir;
     float lon;
-    float lonDir;
+    char lonDir;
     float alt;
+    char mode;
+    char status;
 };
 
 struct SpeedData {
     float speed;
-    float tack;
+    float track;
     float magVar;
+    char magVarDir;
 };
 
 typedef enum {
@@ -257,7 +260,7 @@ public:
     LTE_Shield_error_t gpsGetSat(uint8_t * sats);
     LTE_Shield_error_t gpsEnableRmc(boolean enable = true);
     LTE_Shield_error_t gpsGetRmc(struct PositionData * pos, struct SpeedData * speed,
-        struct DateData * date, boolean * valid);
+        struct ClockData * clk, boolean * valid);
     LTE_Shield_error_t gpsEnableSpeed(boolean enable = true);
     LTE_Shield_error_t gpsGetSpeed(struct SpeedData * speed);
 

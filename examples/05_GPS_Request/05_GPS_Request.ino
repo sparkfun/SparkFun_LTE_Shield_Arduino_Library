@@ -55,7 +55,7 @@ void processGpsRead(ClockData clck, PositionData gps,
   Serial.println("Lat/Lon: " + String(gps.lat, 7) + "/" + String(gps.lon, 7));
   Serial.println("Alt: " + String(gps.alt));
   Serial.println("Uncertainty: " + String(uncertainty));
-  Serial.println("Speed: " + String(spd.speed) + " @ " + String(spd.tack));
+  Serial.println("Speed: " + String(spd.speed) + " @ " + String(spd.track));
   Serial.println();
 
   requestingGPS = false;
