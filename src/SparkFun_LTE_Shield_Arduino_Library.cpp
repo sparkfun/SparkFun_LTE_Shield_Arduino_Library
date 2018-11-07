@@ -51,6 +51,7 @@ const char LTE_SHIELD_COMMAND_AUTO_TZ[] = "+CTZU"; // Automatic time zone update
 const char LTE_SHIELD_COMMAND_MNO[] = "+UMNOPROF"; // MNO (mobile network operator) Profile
 const char LTE_SHIELD_SIGNAL_QUALITY[] = "+CSQ";
 const char LTE_SHIELD_REGISTRATION_STATUS[] = "+CREG";
+const char LTE_SHIELD_MESSAGE_PDP_DEF[] = "+CGDCONT";
 // V24 control and V25ter (UART interface)
 const char LTE_SHIELD_COMMAND_BAUD[] = "+IPR";     // Baud rate
 // ### GPIO
@@ -313,9 +314,7 @@ LTE_Shield_error_t LTE_Shield::at(void)
     LTE_Shield_error_t err;
     char * command;
 
-    // Construct command
-    command = NULL;
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+    err = sendCommandWithResponse(NULL, LTE_SHIELD_RESPONSE_OK, NULL,
         LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     return err;
@@ -360,6 +359,7 @@ String LTE_Shield::imei(void)
             memset(imeiResponse, 0, 16);
         }
     }
+    free(response);
     return String(imeiResponse);;
 }
 
@@ -380,6 +380,7 @@ String LTE_Shield::imsi(void)
             memset(imsiResponse, 0, 16);
         }
     }
+    free(response);
     return String(imsiResponse);
 }
 
@@ -575,22 +576,28 @@ boolean LTE_Shield::setNetwork(mobile_network_operator_t mno)
     mobile_network_operator_t currentMno;
 
     // Check currently set MNO
-    if (getMno(&currentMno) != LTE_SHIELD_ERROR_SUCCESS) return false;
+    if (getMno(&currentMno) != LTE_SHIELD_ERROR_SUCCESS) {
+        Serial.println("Error getting MNO");
+        return false;
+    }
     if (currentMno == mno) 
     {
         return true;
     }
 
     if (functionality(MINIMUM_FUNCTIONALITY) != LTE_SHIELD_ERROR_SUCCESS) {
+        Serial.println("Error setting functionality");
         return false;
     }
 
     if (setMno(mno) != LTE_SHIELD_ERROR_SUCCESS) {
+        Serial.println("Error setting MNO");
         return false;
     }
 
     if (reset() != LTE_SHIELD_ERROR_SUCCESS) 
     {
+        Serial.println("Error resetting");
         return false;
     }
 
@@ -609,6 +616,46 @@ mobile_network_operator_t LTE_Shield::getNetwork(void)
     }
     return mno;
 }
+
+LTE_Shield_error_t LTE_Shield::setAPN(String apn, uint8_t cid, LTE_Shield_pdp_type pdpType)
+{
+    LTE_Shield_error_t err;
+    char * command;
+    char pdpStr[8];
+
+    memset(pdpStr, 0, 8);
+
+    if (cid >= 8) return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_PDP_DEF) + strlen(apn.c_str()) + 16);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    switch (pdpType) {
+    case PDP_TYPE_INVALID:
+        return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
+        break;
+    case PDP_TYPE_IP:
+        memcpy(pdpStr, "IP", 2);
+        break;
+    case PDP_TYPE_NONIP:
+        memcpy(pdpStr, "NONIP", 2);
+        break;
+    case PDP_TYPE_IPV4V6:
+        memcpy(pdpStr, "IPV4V6", 2);
+        break;
+    case PDP_TYPE_IPV6:
+        memcpy(pdpStr, "IPV6", 2);
+        break;
+    }
+    sprintf(command, "%s=%d,\"%s\",\"%s\"", LTE_SHIELD_MESSAGE_PDP_DEF,
+        cid, pdpStr, apn.c_str());
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    //Serial.println("Set APN: " + String(command));
+    
+    return err;
+}
+
 
 LTE_Shield_error_t LTE_Shield::setSMSMessageFormat(lte_shield_message_format_t textMode)
 {
@@ -632,7 +679,6 @@ LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
     char * command;
     char * messageCStr;
     char * numberCStr;
-    char * response;
     int messageIndex;
     LTE_Shield_error_t err;
 
@@ -641,17 +687,18 @@ LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
     number.toCharArray(numberCStr, number.length() + 1);
 
     command = lte_calloc_char(strlen(LTE_SHIELD_SEND_TEXT) + strlen(numberCStr) + 8);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command != NULL)
+    {
     sprintf(command, "%s=\"%s\"", LTE_SHIELD_SEND_TEXT, numberCStr);
 
     err = sendCommandWithResponse(command, ">", NULL, 
         LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     free(command);
+        free(numberCStr);
     if (err != LTE_SHIELD_ERROR_SUCCESS) return err;
 
     messageCStr = lte_calloc_char(message.length() + 1);
-    response = lte_calloc_char(24);
-    if ((messageCStr == NULL) || (response == NULL))
+        if (messageCStr == NULL)
     {
         hwPrint(ASCII_ESC);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
@@ -659,19 +706,15 @@ LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
     message.toCharArray(messageCStr, message.length() + 1);
     messageCStr[message.length()] = ASCII_CTRL_Z;
 
-    sendCommandWithResponse(messageCStr, LTE_SHIELD_RESPONSE_OK, 
-        response, 180000, NOT_AT_COMMAND);
-    if (sscanf(response, "\r\n+CMGS: %d", &messageIndex) == 1)
-    {
-        // TODO? Return a message index?
+        err = sendCommandWithResponse(messageCStr, LTE_SHIELD_RESPONSE_OK, 
+            NULL, 180000, NOT_AT_COMMAND);
     }
     else
     {
-        return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+        err = LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
     free(messageCStr);
-    free(numberCStr);
     
     return err;
 }
@@ -1286,14 +1329,17 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     int destIndex = 0;
     unsigned int charsRead = 0;
 
+    //Serial.print("Command: ");
+    //Serial.println(String(command));
     sendCommand(command, at);
-    
+    //Serial.print("Response: ");
     timeIn = millis();
     while ((!found) && (timeIn + commandTimeout > millis()))
     {
         if (hwAvailable())
         {
             char c = readChar();
+            //Serial.write(c);
             if (responseDest != NULL)
             {
                 responseDest[destIndex++] = c;
@@ -1312,6 +1358,7 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
             }
         }
     }
+    //Serial.println();
 
     if (found)
     {

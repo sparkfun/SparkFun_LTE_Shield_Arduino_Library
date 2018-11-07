@@ -41,7 +41,7 @@ String registrationString[] = {
   "Searching for operator",                 // 2
   "Registration denied",                    // 3
   "Registration unknown",                   // 4
-  "Registrered, roaming",                   // 5
+  "Registered, roaming",                   // 5
   "Registered, home (SMS only)",            // 6
   "Registered, roaming (SMS only)",         // 7
   "Registered, home, CSFB not preferred",   // 8
@@ -55,6 +55,10 @@ String registrationString[] = {
 // MNO_TMO -- T-Mobile
 const mobile_network_operator_t MOBILE_NETWORK_OPERATOR = MNO_VERIZON;
 
+// APN -- Access Point Name. Gateway between GPRS MNO
+// and another computer network. E.g. "hologram
+const String APN = "hologram";
+
 void setup() {
   Serial.begin(9600);
 
@@ -66,6 +70,7 @@ void setup() {
   // communicate with the LTE Shield.
   // Note: If you're using an Arduino with a dedicated hardware serial
   // poert, you may instead slide "Serial" into this begin call.
+
   if ( lte.begin(lteSerial) ) {
     Serial.println(F("LTE Shield connected!"));
   } else {
@@ -76,37 +81,15 @@ void setup() {
   }
   Serial.println();
 
-  Serial.println(F("Getting device/SIM info:"));
-  // Print device information:
-  String imei, imsi, ccid;
-  // IMEI: International Mobile Equipment Identity -- Unique number to identify phone
-  imei = lte.imei();
-  Serial.println("IMEI: " + imei);
-  // IMSI: International Mobile Subscriber Identity -- Unique number to identify
-  // user of a cellular network.
-  imsi = lte.imsi();
-  if (imsi.length() < 10) {
-    Serial.println(F("Unable to read the IMSI -- there may be an error."));
-    Serial.println(F("Is your SIM card inserted?"));
-  } else {
-    Serial.println("IMSI: " + imsi);
-  }
-  // ICCID: Integrated circuit card identifier -- Unique SIM card serial number.
-  ccid = lte.ccid();
-  if (imsi.length() < 10) {
-    Serial.println(F("Unable to read the CCID -- there may be an error."));
-    Serial.println(F("Is your SIM card inserted?"));
-  } else {
-    Serial.println("ICCID: " + ccid);
-  }
-  Serial.println();
-
   if (!lte.setNetwork(MOBILE_NETWORK_OPERATOR)) {
     Serial.println(F("Error setting network. Try cycling power on your Arduino/shield."));
     while (1) ;
   }
-
+  if (lte.setAPN(APN) == LTE_SHIELD_SUCCESS) {
+    Serial.println(F("APN successfully set."));
+  }
   Serial.println(F("Network set. Ready to go!"));
+  
   // RSSI: Received signal strength:
   Serial.println("RSSI: " + String(lte.rssi()));
   // Registration Status

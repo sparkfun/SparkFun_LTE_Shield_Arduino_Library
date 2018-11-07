@@ -180,6 +180,14 @@ public:
     LTE_Shield_registration_status_t registration(void);
     boolean setNetwork(mobile_network_operator_t mno);
     mobile_network_operator_t getNetwork(void);
+    typedef enum {
+        PDP_TYPE_INVALID = -1,
+        PDP_TYPE_IP = 0,
+        PDP_TYPE_NONIP = 1,
+        PDP_TYPE_IPV4V6 = 2,
+        PDP_TYPE_IPV6 = 3
+    } LTE_Shield_pdp_type;
+    LTE_Shield_error_t setAPN(String apn, uint8_t cid = 1, LTE_Shield_pdp_type pdpType = PDP_TYPE_IP);
 
 // SMS -- Short Messages Service
     LTE_Shield_error_t setSMSMessageFormat(lte_shield_message_format_t textMode 
