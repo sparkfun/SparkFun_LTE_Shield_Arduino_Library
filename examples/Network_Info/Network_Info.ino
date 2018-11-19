@@ -49,6 +49,7 @@ String registrationString[] = {
 };
 
 // Network operator can be set to either:
+// MNO_SW_DEFAULT -- DEFAULT
 // MNO_ATT -- AT&T 
 // MNO_VERIZON -- Verizon
 // MNO_TELSTRA -- Telstra
