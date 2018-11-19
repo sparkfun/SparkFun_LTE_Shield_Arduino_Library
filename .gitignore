@@ -58,3 +58,6 @@ Makefile
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Test examples
+test
