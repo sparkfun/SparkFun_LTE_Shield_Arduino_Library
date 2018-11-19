@@ -52,6 +52,8 @@ const char LTE_SHIELD_COMMAND_MNO[] = "+UMNOPROF"; // MNO (mobile network operat
 const char LTE_SHIELD_SIGNAL_QUALITY[] = "+CSQ";
 const char LTE_SHIELD_REGISTRATION_STATUS[] = "+CREG";
 const char LTE_SHIELD_MESSAGE_PDP_DEF[] = "+CGDCONT";
+const char LTE_SHIELD_MESSAGE_ENTER_PPP[] = "D";
+const char LTE_SHIELD_OPERATOR_SELECTION[] = "+COPS";
 // V24 control and V25ter (UART interface)
 const char LTE_SHIELD_COMMAND_BAUD[] = "+IPR";     // Baud rate
 // ### GPIO
@@ -577,7 +579,6 @@ boolean LTE_Shield::setNetwork(mobile_network_operator_t mno)
 
     // Check currently set MNO
     if (getMno(&currentMno) != LTE_SHIELD_ERROR_SUCCESS) {
-        Serial.println("Error getting MNO");
         return false;
     }
     if (currentMno == mno) 
@@ -586,18 +587,15 @@ boolean LTE_Shield::setNetwork(mobile_network_operator_t mno)
     }
 
     if (functionality(MINIMUM_FUNCTIONALITY) != LTE_SHIELD_ERROR_SUCCESS) {
-        Serial.println("Error setting functionality");
         return false;
     }
 
     if (setMno(mno) != LTE_SHIELD_ERROR_SUCCESS) {
-        Serial.println("Error setting MNO");
         return false;
     }
 
     if (reset() != LTE_SHIELD_ERROR_SUCCESS) 
     {
-        Serial.println("Error resetting");
         return false;
     }
 
@@ -651,11 +649,285 @@ LTE_Shield_error_t LTE_Shield::setAPN(String apn, uint8_t cid, LTE_Shield_pdp_ty
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
         LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    //Serial.println("Set APN: " + String(command));
+
+    free(command);
+
+    return err;
+}
+
+LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
+{
+    LTE_Shield_error_t err;
+    char * command;
+    char * response;
+    char * searchPtr;
+    uint8_t ipOctets[4];
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_PDP_DEF) + 3);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s?", LTE_SHIELD_MESSAGE_PDP_DEF);
+
+    response = lte_calloc_char(128);
+    if (response == NULL)
+    {
+        free(command);
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    }
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
+    if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        // Example: +CGDCONT: 1,"IP","hologram","10.170.241.191",0,0,0,0
+        searchPtr = strstr(response, "+CGDCONT: ");
+        if (searchPtr != NULL)
+        {
+            searchPtr += strlen("+CGDCONT: ");
+            // Search to the third double-quote
+            for (int i = 0; i < 3; i ++) 
+            {
+                searchPtr = strchr(++searchPtr, '\"');
+            }
+            if (searchPtr != NULL)
+            {
+                // Fill in the APN:
+                searchPtr = strchr(searchPtr, '\"'); // Move to first quote
+                while ((*(++searchPtr) != '\"') && (searchPtr != '\0'))
+                {
+                    apn->concat(*(searchPtr));
+                }
+                // Now get the IP:
+                if (searchPtr != NULL)
+                {
+                    int scanned = sscanf(searchPtr, "\",\"%hhu.%hhu.%hhu.%hhu\"",
+                        &ipOctets[0], &ipOctets[1], &ipOctets[2], &ipOctets[3]);
+                    if (scanned == 4)
+                    {
+                        for (int octet = 0; octet < 4; octet++)
+                        {
+                            (*ip)[octet] = ipOctets[octet];
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            err = LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+        }
+    }
+
+    free(command);
+    free(response);
+
+    return err;
+}
+
+const char * PPP_L2P[5] = {
+    "",
+    "PPP",
+    "M-HEX",
+    "M-RAW_IP",
+    "M-OPT-PPP",
+};
+
+LTE_Shield_error_t LTE_Shield::enterPPP(uint8_t cid, char dialing_type_char,
+     unsigned long dialNumber, LTE_Shield::LTE_Shield_l2p_t l2p)
+{
+    LTE_Shield_error_t err;
+    char * command;
+
+    if ((dialing_type_char != 0) && (dialing_type_char != 'T') &&
+        (dialing_type_char != 'P'))
+    {
+        return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
+    }
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_ENTER_PPP) + 32);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (dialing_type_char != 0)
+    {
+        sprintf(command, "%s%c*%lu**%s*%hhu#", LTE_SHIELD_MESSAGE_ENTER_PPP, dialing_type_char,
+            dialNumber, PPP_L2P[l2p], cid);
+    }
+    else
+    {
+        sprintf(command, "%s*%lu**%s*%hhu#", LTE_SHIELD_MESSAGE_ENTER_PPP,
+            dialNumber, PPP_L2P[l2p], cid);
+    }
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    
+    free(command);
+    return err;
+}
+
+uint8_t LTE_Shield::getOperators(struct operator_stats * opRet, int maxOps)
+{
+    LTE_Shield_error_t err;
+    char * command;
+    char * response;
+    uint8_t opsSeen = 0;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 3);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=?", LTE_SHIELD_OPERATOR_SELECTION);
+
+    response = lte_calloc_char(maxOps*48 + 16);
+    if (response == NULL)
+    {
+        free (command);
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    }
+
+    // AT+COPS maximum response time is 3 minutes (180000 ms)
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+        180000);
+
+    // Sample responses:
+    // +COPS: (3,"Verizon Wireless","VzW","311480",8),,(0,1,2,3,4),(0,1,2)
+    // +COPS: (1,"313 100","313 100","313100",8),(2,"AT&T","AT&T","310410",8),(3,"311 480","311 480","311480",8),,(0,1,2,3,4),(0,1,2)
+
+    if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        char * opBegin;
+        char * opEnd;
+        int op = 0;
+        int sscanRead = 0;
+        int stat;
+        char longOp[26];
+        char shortOp[11];
+        uint8_t act;
+        unsigned long numOp;
+
+        opBegin = response;
+
+        for (; op < maxOps; op++)
+        {
+            opBegin = strchr(opBegin, '(');
+            if (opBegin == NULL) break;
+            opEnd = strchr(opBegin, ')');
+            if (opEnd == NULL) break;
+                    
+            int sscanRead = sscanf(opBegin, "(%d,\"%[^\"]\",\"%[^\"]\",\"%lu\",%d)%*s",
+                &stat, longOp, shortOp, &numOp, &act);
+            if (sscanRead == 5) 
+            {
+                opRet[op].stat = stat;
+                opRet[op].longOp = (String)(longOp);
+                opRet[op].shortOp = (String)(shortOp);
+                opRet[op].numOp = numOp;
+                opRet[op].act = act;
+                opsSeen += 1;
+            }
+            // TODO: Search for other possible patterns here
+            else
+            {
+                break; // Break out if pattern doesn't match.
+            }
+            opBegin = opEnd + 1; // Move opBegin to beginning of next value
+        }
+    }
+
+    free(command);
+    free(response);
+
+    return opsSeen;
+}
+
+LTE_Shield_error_t LTE_Shield::registerOperator(struct operator_stats oper)
+{
+    LTE_Shield_error_t err;
+    char * command;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION)  + 24);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=1,2,\"%lu\"", LTE_SHIELD_OPERATOR_SELECTION, oper.numOp);
+
+    // AT+COPS maximum response time is 3 minutes (180000 ms)
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+        180000);
     
     return err;
 }
 
+LTE_Shield_error_t LTE_Shield::getOperator(String * oper)
+{
+    LTE_Shield_error_t err;
+    char * command;
+    char * response;
+    char * searchPtr;
+    char mode;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 3);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s?", LTE_SHIELD_OPERATOR_SELECTION);
+
+    response = lte_calloc_char(64);
+    if (response == NULL) 
+    {
+        free(command);
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    }
+
+    // AT+COPS maximum response time is 3 minutes (180000 ms)
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+        180000);
+
+    if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        searchPtr = strstr(response, "+COPS: ");
+        if (searchPtr != NULL)
+        {
+            searchPtr += strlen("+COPS: "); //  Move searchPtr to first char
+            mode = *searchPtr; // Read first char -- should be mode
+            if (mode == '2') // Check for de-register
+            {
+                err = LTE_SHIELD_ERROR_DEREGISTERED;
+            }
+            // Otherwise if it's default, manual, set-only, or automatic
+            else if ((mode == '0') || (mode == '1') || (mode == '3') || (mode == '4'))
+            {
+                *oper = "";
+                searchPtr = strchr(searchPtr, '\"'); // Move to first quote
+                if (searchPtr == NULL)
+                {
+                    err = LTE_SHIELD_ERROR_DEREGISTERED;
+                }
+                else
+                {
+                    while ((*(++searchPtr) != '\"') && (searchPtr != '\0'))
+                    {
+                        oper->concat(*(searchPtr));
+                    }
+                }
+                //Serial.println("Operator: " + *oper);
+                //oper->concat('\0');
+            }
+        }
+    }
+
+    free(response);
+    free(command);
+    return err;
+}
+
+LTE_Shield_error_t LTE_Shield::deregisterOperator(void)
+{
+    LTE_Shield_error_t err;
+    char * command;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION)  + 4);
+    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=2", LTE_SHIELD_OPERATOR_SELECTION);
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    
+    return err;
+}
 
 LTE_Shield_error_t LTE_Shield::setSMSMessageFormat(lte_shield_message_format_t textMode)
 {
@@ -1230,6 +1502,8 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t * mno)
     LTE_Shield_error_t err;
     char * command;
     char * response;
+    const char * mno_keys = "0123456"; // Valid MNO responses
+    int i;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_MNO) + 2);
     if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
@@ -1240,11 +1514,8 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t * mno)
     
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
         response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-
     if (err != LTE_SHIELD_ERROR_SUCCESS) return err;
 
-    const char * mno_keys = "0123456"; // Valid MNO responses
-    int i;
     i = strcspn(response, mno_keys); // Find first occurence of MNO key
     if (i == strlen(response))
     {
@@ -1321,7 +1592,7 @@ LTE_Shield_error_t LTE_Shield::waitForResponse(char * expectedResponse, uint16_t
 
 LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     const char * command, char * expectedResponse, char * responseDest, 
-    uint16_t commandTimeout, boolean at)
+    unsigned long commandTimeout, boolean at)
 {
     unsigned long timeIn;
     boolean found = false;

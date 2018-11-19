@@ -72,7 +72,8 @@ typedef enum {
     LTE_SHIELD_ERROR_TIMEOUT,              // 2
     LTE_SHIELD_ERROR_UNEXPECTED_PARAM,     // 3
     LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,  // 4
-    LTE_SHIELD_ERROR_NO_RESPONSE           // 5
+    LTE_SHIELD_ERROR_NO_RESPONSE,          // 5
+    LTE_SHIELD_ERROR_DEREGISTERED          // 6
 } LTE_Shield_error_t;
 #define LTE_SHIELD_SUCCESS LTE_SHIELD_ERROR_SUCCESS
 
@@ -126,6 +127,14 @@ struct SpeedData {
     float track;
     float magVar;
     char magVarDir;
+};
+
+struct operator_stats {
+    uint8_t stat;
+    String shortOp;
+    String longOp;
+    unsigned long numOp;
+    uint8_t act;
 };
 
 typedef enum {
@@ -188,6 +197,22 @@ public:
         PDP_TYPE_IPV6 = 3
     } LTE_Shield_pdp_type;
     LTE_Shield_error_t setAPN(String apn, uint8_t cid = 1, LTE_Shield_pdp_type pdpType = PDP_TYPE_IP);
+    LTE_Shield_error_t getAPN(String * apn, IPAddress * ip);
+
+    typedef enum {
+        L2P_DEFAULT,
+        L2P_PPP,
+        L2P_M_HEX,
+        L2P_M_RAW_IP,
+        L2P_M_OPT_PPP
+    } LTE_Shield_l2p_t;
+    LTE_Shield_error_t enterPPP(uint8_t cid = 1, char dialing_type_char = 0, 
+        unsigned long dialNumber = 99, LTE_Shield_l2p_t l2p = L2P_DEFAULT);
+
+    uint8_t getOperators(struct operator_stats * op, int maxOps = 3);
+    LTE_Shield_error_t registerOperator(struct operator_stats oper);
+    LTE_Shield_error_t getOperator(String * oper);
+    LTE_Shield_error_t deregisterOperator(void);
 
 // SMS -- Short Messages Service
     LTE_Shield_error_t setSMSMessageFormat(lte_shield_message_format_t textMode 
@@ -317,8 +342,8 @@ private:
     LTE_Shield_error_t waitForResponse(char * expectedResponse, uint16_t timeout);
 
     // Send command with an expected (potentially partial) response, store entire response
-    LTE_Shield_error_t sendCommandWithResponse(const char * command, 
-        char * expectedResponse, char * responseDest, uint16_t commandTimeout, boolean at = true);
+    LTE_Shield_error_t sendCommandWithResponse(const char * command, char * expectedResponse, 
+        char * responseDest, unsigned long commandTimeout, boolean at = true);
 
     // Send a command -- prepend AT if at is true
     boolean sendCommand(const char * command, boolean at);
