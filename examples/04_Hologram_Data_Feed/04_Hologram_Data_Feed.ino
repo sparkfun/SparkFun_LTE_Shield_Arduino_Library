@@ -25,6 +25,12 @@
   Attach the SparkFun LTE Cat M1/NB-IoT Shield to your Arduino
   Power the shield with your Arduino -- ensure the PWR_SEL switch is in
     the "ARDUINO" position.
+  
+  Hardware mofification required!: Note that the AREF pin on v1.0 of
+  the SparkFun LTE Shield is connected to ground. This bug will prevent
+  accurate readings of the analog pins. We recommend cutting this
+  pin on the 10-pin Arduino header (effectively disconnecting the shield's
+  AREF pin from the Arduino).
 */
 
 //Click here to get the library: http://librarymanager/All#SparkFun_LTE_Shield_Arduino_Library
