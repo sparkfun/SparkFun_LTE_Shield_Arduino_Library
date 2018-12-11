@@ -154,7 +154,9 @@ public:
     LTE_Shield(uint8_t powerPin = LTE_SHIELD_POWER_PIN, uint8_t resetPin = LTE_SHIELD_RESET_PIN);
 
     // Begin -- initialize BT module and ensure it's connected
+#ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
     boolean begin(SoftwareSerial & softSerial, unsigned long baud = 9600);
+#endif
     boolean begin(HardwareSerial & hardSerial, unsigned long baud = 9600);
 
     // Loop polling and polling setup
@@ -339,10 +341,10 @@ private:
     LTE_Shield_error_t getMno(mobile_network_operator_t * mno);
 
     // Wait for an expected response (don't send a command)
-    LTE_Shield_error_t waitForResponse(char * expectedResponse, uint16_t timeout);
+    LTE_Shield_error_t waitForResponse(const char * expectedResponse, uint16_t timeout);
 
     // Send command with an expected (potentially partial) response, store entire response
-    LTE_Shield_error_t sendCommandWithResponse(const char * command, char * expectedResponse, 
+    LTE_Shield_error_t sendCommandWithResponse(const char * command, const char * expectedResponse, 
         char * responseDest, unsigned long commandTimeout, boolean at = true);
 
     // Send a command -- prepend AT if at is true
@@ -354,6 +356,7 @@ private:
 
 // UART Functions
     size_t hwPrint(const char * s);
+    size_t hwWrite(const char c);
     int readAvailable(char * inString);
     char readChar(void);
     int hwAvailable(void);
