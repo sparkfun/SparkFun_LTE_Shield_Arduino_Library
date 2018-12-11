@@ -30,11 +30,18 @@
 // library. Below creates a SoftwareSerial object on the standard LTE
 // Shield RX/TX pins:
 // Note: if you're using an Arduino board with a dedicated hardware
-// serial port, comment out the line below. (Also see note in setup.)
+// serial port, comment out the line below. (Also see note in setup)
 SoftwareSerial lteSerial(8, 9);
 
 // Create a LTE_Shield object to be used throughout the sketch:
 LTE_Shield lte;
+
+// To support multiple architectures, serial ports are abstracted here.
+// By default, they'll support AVR's like the Arduino Uno and Redboard
+// For example, on a SAMD21 board SerialMonitor can be changed to SerialUSB
+// and LTEShieldSerial can be set to Serial1 (hardware serial port on 0/1)
+#define SerialMonitor Serial
+#define LTEShieldSerial lteSerial
 
 // Network operator can be set to either:
 // MNO_SW_DEFAULT -- DEFAULT
@@ -64,86 +71,92 @@ void setup() {
   String currentOperator = "";
   bool newConnection = true;
 
-  Serial.begin(9600);
+  SerialMonitor.begin(9600);
+  while (!SerialMonitor) ; // For boards with built-in USB
 
-  Serial.println(F("Initializing the LTE Shield..."));
-  Serial.println(F("...this may take ~25 seconds if the shield is off."));
-  Serial.println(F("...it may take ~5 seconds if it just turned on."));
+  SerialMonitor.println(F("Initializing the LTE Shield..."));
+  SerialMonitor.println(F("...this may take ~25 seconds if the shield is off."));
+  SerialMonitor.println(F("...it may take ~5 seconds if it just turned on."));
+  
   // Call lte.begin and pass it your Serial/SoftwareSerial object to 
   // communicate with the LTE Shield.
   // Note: If you're using an Arduino with a dedicated hardware serial
-  // poert, you may instead slide "Serial" into this begin call.
-  if ( lte.begin(lteSerial, 9600) ) {
-    Serial.println(F("LTE Shield connected!\r\n"));
+  // port, you may instead slide "Serial" into this begin call.
+  if ( lte.begin(LTEShieldSerial, 9600) ) {
+    SerialMonitor.println(F("LTE Shield connected!\r\n"));
+  } else {
+    SerialMonitor.println("Unable to initialize the shield.");
+    while(1) ;
   }
 
   // First check to see if we're already connected to an operator:
   if (lte.getOperator(&currentOperator) == LTE_SHIELD_SUCCESS) {
-    Serial.print(F("Already connected to: "));
-    Serial.println(currentOperator);
+    SerialMonitor.print(F("Already connected to: "));
+    SerialMonitor.println(currentOperator);
     // If already connected provide the option to type y to connect to new operator
-    Serial.println(F("Press y to connect to a new operator, or any other key to continue.\r\n"));
-    while (!Serial.available()) ;
-    if (Serial.read() != 'y') {
+    SerialMonitor.println(F("Press y to connect to a new operator, or any other key to continue.\r\n"));
+    while (!SerialMonitor.available()) ;
+    if (SerialMonitor.read() != 'y') {
       newConnection = false;
     }
+    while (SerialMonitor.available()) SerialMonitor.read();
   }
 
   if (newConnection) {
     // Set MNO to either Verizon, T-Mobile, AT&T, Telstra, etc.
     // This will narrow the operator options during our scan later
-    Serial.println(F("Setting mobile-network operator"));
+    SerialMonitor.println(F("Setting mobile-network operator"));
     if (lte.setNetwork(MOBILE_NETWORK_OPERATOR)) {
-      Serial.print(F("Set mobile network operator to "));
-      Serial.println(MOBILE_NETWORK_STRINGS[MOBILE_NETWORK_OPERATOR] + "\r\n");
+      SerialMonitor.print(F("Set mobile network operator to "));
+      SerialMonitor.println(MOBILE_NETWORK_STRINGS[MOBILE_NETWORK_OPERATOR] + "\r\n");
     } else {
-      Serial.println(F("Error setting MNO. Try cycling power to the shield/Arduino."));
+      SerialMonitor.println(F("Error setting MNO. Try cycling power to the shield/Arduino."));
       while (1) ;
     }
     
     // Set the APN -- Access Point Name -- e.g. "hologram"
-    Serial.println(F("Setting APN..."));
+    SerialMonitor.println(F("Setting APN..."));
     if (lte.setAPN(APN) == LTE_SHIELD_SUCCESS) {
-      Serial.println(F("APN successfully set.\r\n"));
+      SerialMonitor.println(F("APN successfully set.\r\n"));
     } else {
-      Serial.println(F("Error setting APN. Try cycling power to the shield/Arduino."));
+      SerialMonitor.println(F("Error setting APN. Try cycling power to the shield/Arduino."));
       while (1) ;
     }
 
     // Wait for user to press button before initiating network scan.
-    Serial.println(F("Press any key scan for networks.."));
+    SerialMonitor.println(F("Press any key scan for networks.."));
     serialWait();
 
-    Serial.println(F("Scanning for operators...this may take up to 3 minutes\r\n"));
+    SerialMonitor.println(F("Scanning for operators...this may take up to 3 minutes\r\n"));
     // lte.getOperators takes in a operator_stats struct pointer and max number of
     // structs to scan for, then fills up those objects with operator names and numbers
     opsAvailable = lte.getOperators(ops, MAX_OPERATORS); // This will block for up to 3 minutes
 
     if (opsAvailable > 0) {
       // Pretty-print operators we found:
-      Serial.println("Found " + String(opsAvailable) + " operators:");
+      SerialMonitor.println("Found " + String(opsAvailable) + " operators:");
       printOperators(ops, opsAvailable);
 
       // Wait until the user presses a key to initiate an operator connection
-      Serial.println("Press 1-" + String(opsAvailable) + " to select an operator.");
+      SerialMonitor.println("Press 1-" + String(opsAvailable) + " to select an operator.");
       char c = 0;
       bool selected = false;
       while (!selected) {
-        while (!Serial.available()) ;
-        c = Serial.read();
+        while (!SerialMonitor.available()) ;
+        c = SerialMonitor.read();
         int selection = c - '0';
         if ((selection >= 1) && (selection <= opsAvailable)) {
           selected = true;
-          Serial.println("Connecting to option " + String(selection));
+          SerialMonitor.println("Connecting to option " + String(selection));
           if (lte.registerOperator(ops[selection - 1]) == LTE_SHIELD_SUCCESS) {
-            Serial.println("Network " + ops[selection - 1].longOp + " registered\r\n");
+            SerialMonitor.println("Network " + ops[selection - 1].longOp + " registered\r\n");
           } else {
-            Serial.println(F("Error connecting to operator. Reset and try again, or try another network."));
+            SerialMonitor.println(F("Error connecting to operator. Reset and try again, or try another network."));
           }
         }
       }
     } else {
-      Serial.println(F("Did not find an operator. Double-check SIM and antenna, reset and try again, or try another network."));
+      SerialMonitor.println(F("Did not find an operator. Double-check SIM and antenna, reset and try again, or try another network."));
       while (1) ;
     }
   }
@@ -156,11 +169,11 @@ void loop() {
   // Loop won't do much besides provide a debugging interface.
   // Pass serial data from Arduino to shield and vice-versa
 #ifdef DEBUG_PASSTHROUGH_ENABLED
-  if (Serial.available()) {
-    lteSerial.write((char) Serial.read());
+  if (LTEShieldSerial.available()) {
+    SerialMonitor.write((char) LTEShieldSerial.read());
   }
-  if (lteSerial.available()) {
-    Serial.write((char) lteSerial.read());
+  if (SerialMonitor.available()) {
+    LTEShieldSerial.write((char) SerialMonitor.read());
   }
 #endif
 }
@@ -170,48 +183,48 @@ void printInfo(void) {
   IPAddress ip(0, 0, 0, 0);
   String currentOperator = "";
 
-  Serial.println(F("Connection info:"));
+  SerialMonitor.println(F("Connection info:"));
   // APN Connection info: APN name and IP
   if (lte.getAPN(&currentApn, &ip) == LTE_SHIELD_SUCCESS) {
-    Serial.println("APN: " + String(currentApn));
-    Serial.print("IP: ");
-    Serial.println(ip);
+    SerialMonitor.println("APN: " + String(currentApn));
+    SerialMonitor.print("IP: ");
+    SerialMonitor.println(ip);
   }
 
   // Operator name or number
   if (lte.getOperator(&currentOperator) == LTE_SHIELD_SUCCESS) {
-    Serial.print(F("Operator: "));
-    Serial.println(currentOperator);
+    SerialMonitor.print(F("Operator: "));
+    SerialMonitor.println(currentOperator);
   }
 
   // Received signal strength
-  Serial.println("RSSI: " + String(lte.rssi()));
-  Serial.println();
+  SerialMonitor.println("RSSI: " + String(lte.rssi()));
+  SerialMonitor.println();
 }
 
 void printOperators(struct operator_stats * ops, int operatorsAvailable) {
   for (int i = 0; i < operatorsAvailable; i++) {
-    Serial.print(String(i + 1) + ": ");
-    Serial.print(ops[i].longOp + " (" + String(ops[i].numOp) + ") - ");
+    SerialMonitor.print(String(i + 1) + ": ");
+    SerialMonitor.print(ops[i].longOp + " (" + String(ops[i].numOp) + ") - ");
     switch (ops[i].stat) {
     case 0:
-      Serial.println(F("UNKNOWN"));
+      SerialMonitor.println(F("UNKNOWN"));
       break;
     case 1:
-      Serial.println(F("AVAILABLE"));
+      SerialMonitor.println(F("AVAILABLE"));
       break;
     case 2:
-      Serial.println(F("CURRENT"));
+      SerialMonitor.println(F("CURRENT"));
       break;
     case 3:
-      Serial.println(F("FORBIDDEN"));
+      SerialMonitor.println(F("FORBIDDEN"));
       break;
     }
   }
-  Serial.println();
+  SerialMonitor.println();
 }
 
 void serialWait() {
-  while (!Serial.available()) ;
-  while (Serial.available()) Serial.read();
+  while (!SerialMonitor.available()) ;
+  while (SerialMonitor.available()) SerialMonitor.read();
 }
