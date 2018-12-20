@@ -299,7 +299,7 @@ public:
     LTE_Shield_error_t gpsEnableSpeed(boolean enable = true);
     LTE_Shield_error_t gpsGetSpeed(struct SpeedData * speed);
 
-    LTE_Shield_error_t gpsRequest(unsigned int timeout, unsigned int accuracy, boolean detailed = true);
+    LTE_Shield_error_t gpsRequest(unsigned int timeout, uint32_t accuracy, boolean detailed = true);
 
 private:
 
@@ -335,6 +335,8 @@ private:
 
     void powerOn(void);
 
+    void hwReset(void);
+
     LTE_Shield_error_t functionality(LTE_Shield_functionality_t function = FULL_FUNCTIONALITY);
 
     LTE_Shield_error_t setMno(mobile_network_operator_t mno);
@@ -369,4 +371,4 @@ private:
     char * lte_calloc_char(size_t num);
 };
 
-#endif SPARKFUN_LTE_SHIELD_ARDUINO_LIBRARY_H /* SPARKFUN_LTE_SHIELD_ARDUINO_LIBRARY_H */
+#endif //SPARKFUN_LTE_SHIELD_ARDUINO_LIBRARY_H
