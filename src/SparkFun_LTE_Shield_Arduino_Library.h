@@ -36,13 +36,16 @@
 #include "WProgram.h"
 #endif
 
-
-#ifdef ARDUINO_ARCH_AVR               // Arduino AVR boards (Uno, Pro Micro, etc.)
+#ifdef ARDUINO_ARCH_AVR                    // Arduino AVR boards (Uno, Pro Micro, etc.)
 #define LTE_SHIELD_SOFTWARE_SERIAL_ENABLED // Enable software serial
 #endif
 
-#ifdef ARDUINO_ARCH_SAMD              // Arduino SAMD boards (SAMD21, etc.)
+#ifdef ARDUINO_ARCH_SAMD                    // Arduino SAMD boards (SAMD21, etc.)
 #define LTE_SHIELD_SOFTWARE_SERIAL_ENABLEDx // Disable software serial
+#endif
+
+#ifdef ARDUINO_ARCH_APOLLO                 // Arduino Apollo boards (Artemis module, RedBoard Artemis, etc)
+#define LTE_SHIELD_SOFTWARE_SERIAL_ENABLED // Enable software serial
 #endif
 
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
@@ -54,7 +57,8 @@
 #define LTE_SHIELD_POWER_PIN 5
 #define LTE_SHIELD_RESET_PIN 6
 
-typedef enum {
+typedef enum
+{
     MNO_INVALID = -1,
     MNO_SW_DEFAULT = 0,
     MNO_SIM_ICCD = 1,
@@ -65,19 +69,21 @@ typedef enum {
     MNO_CT = 6
 } mobile_network_operator_t;
 
-typedef enum {
-    LTE_SHIELD_ERROR_INVALID = -1,         // -1
-    LTE_SHIELD_ERROR_SUCCESS = 0,          // 0
-    LTE_SHIELD_ERROR_OUT_OF_MEMORY,        // 1
-    LTE_SHIELD_ERROR_TIMEOUT,              // 2
-    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,     // 3
-    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE,  // 4
-    LTE_SHIELD_ERROR_NO_RESPONSE,          // 5
-    LTE_SHIELD_ERROR_DEREGISTERED          // 6
+typedef enum
+{
+    LTE_SHIELD_ERROR_INVALID = -1,        // -1
+    LTE_SHIELD_ERROR_SUCCESS = 0,         // 0
+    LTE_SHIELD_ERROR_OUT_OF_MEMORY,       // 1
+    LTE_SHIELD_ERROR_TIMEOUT,             // 2
+    LTE_SHIELD_ERROR_UNEXPECTED_PARAM,    // 3
+    LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE, // 4
+    LTE_SHIELD_ERROR_NO_RESPONSE,         // 5
+    LTE_SHIELD_ERROR_DEREGISTERED         // 6
 } LTE_Shield_error_t;
 #define LTE_SHIELD_SUCCESS LTE_SHIELD_ERROR_SUCCESS
 
-typedef enum {
+typedef enum
+{
     LTE_SHIELD_REGISTRATION_INVALID = -1,
     LTE_SHIELD_REGISTRATION_NOT_REGISTERED = 0,
     LTE_SHIELD_REGISTRATION_HOME = 1,
@@ -91,13 +97,15 @@ typedef enum {
     LTE_SHIELD_REGISTRATION_ROAMING_CSFB_NOT_PREFERRED = 9
 } LTE_Shield_registration_status_t;
 
-struct DateData {
+struct DateData
+{
     uint8_t day;
     uint8_t month;
     unsigned int year;
 };
 
-struct TimeData {
+struct TimeData
+{
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
@@ -106,12 +114,14 @@ struct TimeData {
     uint8_t tzm;
 };
 
-struct ClockData {
+struct ClockData
+{
     struct DateData date;
     struct TimeData time;
 };
 
-struct PositionData {
+struct PositionData
+{
     float utc;
     float lat;
     char latDir;
@@ -122,14 +132,16 @@ struct PositionData {
     char status;
 };
 
-struct SpeedData {
+struct SpeedData
+{
     float speed;
     float track;
     float magVar;
     char magVarDir;
 };
 
-struct operator_stats {
+struct operator_stats
+{
     uint8_t stat;
     String shortOp;
     String longOp;
@@ -137,61 +149,64 @@ struct operator_stats {
     uint8_t act;
 };
 
-typedef enum {
+typedef enum
+{
     LTE_SHIELD_TCP = 6,
     LTE_SHIELD_UDP = 17
 } lte_shield_socket_protocol_t;
 
-typedef enum {
+typedef enum
+{
     LTE_SHIELD_MESSAGE_FORMAT_PDU = 0,
     LTE_SHIELD_MESSAGE_FORMAT_TEXT = 1
 } lte_shield_message_format_t;
 
-class LTE_Shield : public Print {
+class LTE_Shield : public Print
+{
 public:
-
     //  Constructor
     LTE_Shield(uint8_t powerPin = LTE_SHIELD_POWER_PIN, uint8_t resetPin = LTE_SHIELD_RESET_PIN);
 
     // Begin -- initialize BT module and ensure it's connected
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
-    boolean begin(SoftwareSerial & softSerial, unsigned long baud = 9600);
+    boolean begin(SoftwareSerial &softSerial, unsigned long baud = 9600);
 #endif
-    boolean begin(HardwareSerial & hardSerial, unsigned long baud = 9600);
+    boolean begin(HardwareSerial &hardSerial, unsigned long baud = 9600);
 
     // Loop polling and polling setup
     boolean poll(void);
     void setSocketReadCallback(void (*socketReadCallback)(int, String));
     void setSocketCloseCallback(void (*socketCloseCallback)(int));
-    void setGpsReadCallback(void (*gpsRequestCallback)(ClockData time, 
-        PositionData gps, SpeedData spd, unsigned long uncertainty));
+    void setGpsReadCallback(void (*gpsRequestCallback)(ClockData time,
+                                                       PositionData gps, SpeedData spd, unsigned long uncertainty));
 
     // Direct write/print to cell serial port
     virtual size_t write(uint8_t c);
     virtual size_t write(const char *str);
-    virtual size_t write(const char * buffer, size_t size);
+    virtual size_t write(const char *buffer, size_t size);
 
-// General AT Commands
+    // General AT Commands
     LTE_Shield_error_t at(void);
     LTE_Shield_error_t enableEcho(boolean enable = true);
     String imei(void);
     String imsi(void);
     String ccid(void);
 
-// Control and status AT commands
+    // Control and status AT commands
     LTE_Shield_error_t reset(void);
     String clock(void);
     // TODO: Return a clock struct
-    LTE_Shield_error_t clock(uint8_t * y, uint8_t * mo, uint8_t * d, 
-        uint8_t * h, uint8_t * min, uint8_t * s, uint8_t * tz);
+    LTE_Shield_error_t clock(uint8_t *y, uint8_t *mo, uint8_t *d,
+                             uint8_t *h, uint8_t *min, uint8_t *s, uint8_t *tz);
     LTE_Shield_error_t autoTimeZone(boolean enable);
 
-// Network service AT commands
+    // Network service AT commands
     int8_t rssi(void);
     LTE_Shield_registration_status_t registration(void);
     boolean setNetwork(mobile_network_operator_t mno);
     mobile_network_operator_t getNetwork(void);
-    typedef enum {
+    typedef enum
+    {
         PDP_TYPE_INVALID = -1,
         PDP_TYPE_IP = 0,
         PDP_TYPE_NONIP = 1,
@@ -199,34 +214,35 @@ public:
         PDP_TYPE_IPV6 = 3
     } LTE_Shield_pdp_type;
     LTE_Shield_error_t setAPN(String apn, uint8_t cid = 1, LTE_Shield_pdp_type pdpType = PDP_TYPE_IP);
-    LTE_Shield_error_t getAPN(String * apn, IPAddress * ip);
+    LTE_Shield_error_t getAPN(String *apn, IPAddress *ip);
 
-    typedef enum {
+    typedef enum
+    {
         L2P_DEFAULT,
         L2P_PPP,
         L2P_M_HEX,
         L2P_M_RAW_IP,
         L2P_M_OPT_PPP
     } LTE_Shield_l2p_t;
-    LTE_Shield_error_t enterPPP(uint8_t cid = 1, char dialing_type_char = 0, 
-        unsigned long dialNumber = 99, LTE_Shield_l2p_t l2p = L2P_DEFAULT);
+    LTE_Shield_error_t enterPPP(uint8_t cid = 1, char dialing_type_char = 0,
+                                unsigned long dialNumber = 99, LTE_Shield_l2p_t l2p = L2P_DEFAULT);
 
-    uint8_t getOperators(struct operator_stats * op, int maxOps = 3);
+    uint8_t getOperators(struct operator_stats *op, int maxOps = 3);
     LTE_Shield_error_t registerOperator(struct operator_stats oper);
-    LTE_Shield_error_t getOperator(String * oper);
+    LTE_Shield_error_t getOperator(String *oper);
     LTE_Shield_error_t deregisterOperator(void);
 
-// SMS -- Short Messages Service
-    LTE_Shield_error_t setSMSMessageFormat(lte_shield_message_format_t textMode 
-        = LTE_SHIELD_MESSAGE_FORMAT_TEXT);
+    // SMS -- Short Messages Service
+    LTE_Shield_error_t setSMSMessageFormat(lte_shield_message_format_t textMode = LTE_SHIELD_MESSAGE_FORMAT_TEXT);
     LTE_Shield_error_t sendSMS(String number, String message);
 
-// V24 Control and V25ter (UART interface) AT commands
+    // V24 Control and V25ter (UART interface) AT commands
     LTE_Shield_error_t setBaud(unsigned long baud);
 
-// GPIO
+    // GPIO
     // GPIO pin map
-    typedef enum {
+    typedef enum
+    {
         GPIO1 = 16,
         GPIO2 = 23,
         GPIO3 = 24,
@@ -235,7 +251,8 @@ public:
         GPIO6 = 19
     } LTE_Shield_gpio_t;
     // GPIO pin modes
-    typedef enum {
+    typedef enum
+    {
         GPIO_MODE_INVALID = -1,
         GPIO_OUTPUT = 0,
         GPIO_INPUT,
@@ -263,15 +280,16 @@ public:
     // IP Transport Layer
     int socketOpen(lte_shield_socket_protocol_t protocol, unsigned int localPort = 0);
     LTE_Shield_error_t socketClose(int socket, int timeout = 1000);
-    LTE_Shield_error_t socketConnect(int socket, const char * address, unsigned int port);
-    LTE_Shield_error_t socketWrite(int socket, const char * str);
+    LTE_Shield_error_t socketConnect(int socket, const char *address, unsigned int port);
+    LTE_Shield_error_t socketWrite(int socket, const char *str);
     LTE_Shield_error_t socketWrite(int socket, String str);
-    LTE_Shield_error_t socketRead(int socket, int length, char * readDest);
+    LTE_Shield_error_t socketRead(int socket, int length, char *readDest);
     LTE_Shield_error_t socketListen(int socket, unsigned int port);
     IPAddress lastRemoteIP(void);
 
     // GPS
-    typedef enum {
+    typedef enum
+    {
         GNSS_SYSTEM_GPS = 1,
         GNSS_SYSTEM_SBAS = 2,
         GNSS_SYSTEM_GALILEO = 4,
@@ -282,30 +300,29 @@ public:
     } gnss_system_t;
     boolean gpsOn(void);
     LTE_Shield_error_t gpsPower(boolean enable = true,
-        gnss_system_t gnss_sys = GNSS_SYSTEM_GPS);
+                                gnss_system_t gnss_sys = GNSS_SYSTEM_GPS);
     LTE_Shield_error_t gpsEnableClock(boolean enable = true);
-    LTE_Shield_error_t gpsGetClock(struct ClockData * clock);
+    LTE_Shield_error_t gpsGetClock(struct ClockData *clock);
     LTE_Shield_error_t gpsEnableFix(boolean enable = true);
-    LTE_Shield_error_t gpsGetFix(float * lat, float * lon, 
-        unsigned int * alt, uint8_t * quality, uint8_t * sat);
-    LTE_Shield_error_t gpsGetFix(struct PositionData * pos);
+    LTE_Shield_error_t gpsGetFix(float *lat, float *lon,
+                                 unsigned int *alt, uint8_t *quality, uint8_t *sat);
+    LTE_Shield_error_t gpsGetFix(struct PositionData *pos);
     LTE_Shield_error_t gpsEnablePos(boolean enable = true);
-    LTE_Shield_error_t gpsGetPos(struct PositionData * pos);
+    LTE_Shield_error_t gpsGetPos(struct PositionData *pos);
     LTE_Shield_error_t gpsEnableSat(boolean enable = true);
-    LTE_Shield_error_t gpsGetSat(uint8_t * sats);
+    LTE_Shield_error_t gpsGetSat(uint8_t *sats);
     LTE_Shield_error_t gpsEnableRmc(boolean enable = true);
-    LTE_Shield_error_t gpsGetRmc(struct PositionData * pos, struct SpeedData * speed,
-        struct ClockData * clk, boolean * valid);
+    LTE_Shield_error_t gpsGetRmc(struct PositionData *pos, struct SpeedData *speed,
+                                 struct ClockData *clk, boolean *valid);
     LTE_Shield_error_t gpsEnableSpeed(boolean enable = true);
-    LTE_Shield_error_t gpsGetSpeed(struct SpeedData * speed);
+    LTE_Shield_error_t gpsGetSpeed(struct SpeedData *speed);
 
     LTE_Shield_error_t gpsRequest(unsigned int timeout, uint32_t accuracy, boolean detailed = true);
 
 private:
-
-    HardwareSerial * _hardSerial;
+    HardwareSerial *_hardSerial;
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
-    SoftwareSerial * _softSerial;
+    SoftwareSerial *_softSerial;
 #endif
 
     uint8_t _powerPin;
@@ -313,18 +330,20 @@ private:
     unsigned long _baud;
     IPAddress _lastRemoteIP;
     IPAddress _lastLocalIP;
-    
+
     void (*_socketReadCallback)(int, String);
     void (*_socketCloseCallback)(int);
     void (*_gpsRequestCallback)(ClockData, PositionData, SpeedData, unsigned long);
 
-    typedef enum {
+    typedef enum
+    {
         LTE_SHIELD_INIT_STANDARD,
         LTE_SHIELD_INIT_AUTOBAUD,
         LTE_SHIELD_INIT_RESET
     } LTE_Shield_init_type_t;
 
-    typedef enum {
+    typedef enum
+    {
         MINIMUM_FUNCTIONALITY = 0,
         FULL_FUNCTIONALITY = 1,
         SILENT_RESET = 15,
@@ -340,35 +359,35 @@ private:
     LTE_Shield_error_t functionality(LTE_Shield_functionality_t function = FULL_FUNCTIONALITY);
 
     LTE_Shield_error_t setMno(mobile_network_operator_t mno);
-    LTE_Shield_error_t getMno(mobile_network_operator_t * mno);
+    LTE_Shield_error_t getMno(mobile_network_operator_t *mno);
 
     // Wait for an expected response (don't send a command)
-    LTE_Shield_error_t waitForResponse(const char * expectedResponse, uint16_t timeout);
+    LTE_Shield_error_t waitForResponse(const char *expectedResponse, uint16_t timeout);
 
     // Send command with an expected (potentially partial) response, store entire response
-    LTE_Shield_error_t sendCommandWithResponse(const char * command, const char * expectedResponse, 
-        char * responseDest, unsigned long commandTimeout, boolean at = true);
+    LTE_Shield_error_t sendCommandWithResponse(const char *command, const char *expectedResponse,
+                                               char *responseDest, unsigned long commandTimeout, boolean at = true);
 
     // Send a command -- prepend AT if at is true
-    boolean sendCommand(const char * command, boolean at);
+    boolean sendCommand(const char *command, boolean at);
 
     LTE_Shield_error_t parseSocketReadIndication(int socket, int length);
     LTE_Shield_error_t parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP);
-    LTE_Shield_error_t parseSocketCloseIndication(String * closeIndication);
+    LTE_Shield_error_t parseSocketCloseIndication(String *closeIndication);
 
-// UART Functions
-    size_t hwPrint(const char * s);
+    // UART Functions
+    size_t hwPrint(const char *s);
     size_t hwWrite(const char c);
-    int readAvailable(char * inString);
+    int readAvailable(char *inString);
     char readChar(void);
     int hwAvailable(void);
     void beginSerial(unsigned long baud);
     void setTimeout(unsigned long timeout);
-    bool find(char * target);
+    bool find(char *target);
 
     LTE_Shield_error_t autobaud(unsigned long desiredBaud);
 
-    char * lte_calloc_char(size_t num);
+    char *lte_calloc_char(size_t num);
 };
 
 #endif //SPARKFUN_LTE_SHIELD_ARDUINO_LIBRARY_H
