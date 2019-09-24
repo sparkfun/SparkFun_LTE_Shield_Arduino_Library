@@ -250,9 +250,8 @@ boolean LTE_Shield::poll(void)
         else
         {
         }
-
-        return handled;
     }
+    return handled;
 }
 
 void LTE_Shield::setSocketReadCallback(void (*socketReadCallback)(int, String))
@@ -1859,6 +1858,7 @@ LTE_Shield_error_t LTE_Shield::parseSocketListenIndication(IPAddress localIP, IP
 {
     _lastLocalIP = localIP;
     _lastRemoteIP = remoteIP;
+    return LTE_SHIELD_ERROR_SUCCESS;
 }
 
 LTE_Shield_error_t LTE_Shield::parseSocketCloseIndication(String *closeIndication)
@@ -2017,16 +2017,18 @@ void LTE_Shield::setTimeout(unsigned long timeout)
 
 bool LTE_Shield::find(char *target)
 {
+    bool found = false;
     if (_hardSerial != NULL)
     {
-        _hardSerial->find(target);
+        found = _hardSerial->find(target);
     }
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
     else if (_softSerial != NULL)
     {
-        _softSerial->find(target);
+        found = _softSerial->find(target);
     }
 #endif
+    return found;
 }
 
 LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
