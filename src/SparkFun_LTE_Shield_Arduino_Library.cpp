@@ -741,7 +741,7 @@ LTE_Shield_error_t LTE_Shield::getAPN(String *apn, IPAddress *ip)
             {
                 // Fill in the APN:
                 searchPtr = strchr(searchPtr, '\"'); // Move to first quote
-                while ((*(++searchPtr) != '\"') && (searchPtr != '\0'))
+                while ((*(++searchPtr) != '\"') && (*searchPtr != '\0'))
                 {
                     apn->concat(*(searchPtr));
                 }
@@ -952,7 +952,7 @@ LTE_Shield_error_t LTE_Shield::getOperator(String *oper)
                 }
                 else
                 {
-                    while ((*(++searchPtr) != '\"') && (searchPtr != '\0'))
+                    while ((*(++searchPtr) != '\"') && (*searchPtr != '\0'))
                     {
                         oper->concat(*(searchPtr));
                     }
