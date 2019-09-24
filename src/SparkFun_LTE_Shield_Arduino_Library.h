@@ -44,7 +44,7 @@
 #define LTE_SHIELD_SOFTWARE_SERIAL_ENABLEDx // Disable software serial
 #endif
 
-#ifdef ARDUINO_ARCH_APOLLO                 // Arduino Apollo boards (Artemis module, RedBoard Artemis, etc)
+#ifdef ARDUINO_ARCH_APOLLO3                // Arduino Apollo boards (Artemis module, RedBoard Artemis, etc)
 #define LTE_SHIELD_SOFTWARE_SERIAL_ENABLED // Enable software serial
 #endif
 
