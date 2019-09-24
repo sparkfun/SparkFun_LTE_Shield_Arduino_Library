@@ -39,11 +39,11 @@
 
 // ## Suported AT Commands
 // ### General
-const char LTE_SHIELD_COMMAND_AT[] = "AT";         // AT "Test"
-const char LTE_SHIELD_COMMAND_ECHO[] = "E";        // Local Echo
-const char LTE_SHIELD_COMMAND_IMEI[] = "+CGSN";    // IMEI identification
-const char LTE_SHIELD_COMMAND_IMSI[] = "+CIMI";    // IMSI identification
-const char LTE_SHIELD_COMMAND_CCID[] = "+CCID";    // SIM CCID
+const char LTE_SHIELD_COMMAND_AT[] = "AT";      // AT "Test"
+const char LTE_SHIELD_COMMAND_ECHO[] = "E";     // Local Echo
+const char LTE_SHIELD_COMMAND_IMEI[] = "+CGSN"; // IMEI identification
+const char LTE_SHIELD_COMMAND_IMSI[] = "+CIMI"; // IMSI identification
+const char LTE_SHIELD_COMMAND_CCID[] = "+CCID"; // SIM CCID
 // ### Control and status
 const char LTE_SHIELD_COMMAND_FUNC[] = "+CFUN";    // Functionality (reset, etc.)
 const char LTE_SHIELD_COMMAND_CLOCK[] = "+CCLK";   // Clock
@@ -56,9 +56,9 @@ const char LTE_SHIELD_MESSAGE_PDP_DEF[] = "+CGDCONT";
 const char LTE_SHIELD_MESSAGE_ENTER_PPP[] = "D";
 const char LTE_SHIELD_OPERATOR_SELECTION[] = "+COPS";
 // V24 control and V25ter (UART interface)
-const char LTE_SHIELD_COMMAND_BAUD[] = "+IPR";     // Baud rate
+const char LTE_SHIELD_COMMAND_BAUD[] = "+IPR"; // Baud rate
 // ### GPIO
-const char LTE_SHIELD_COMMAND_GPIO[] = "+UGPIOC";  // GPIO Configuration
+const char LTE_SHIELD_COMMAND_GPIO[] = "+UGPIOC"; // GPIO Configuration
 // ### IP
 const char LTE_SHIELD_CREATE_SOCKET[] = "+USOCR";  // Create a new socket
 const char LTE_SHIELD_CLOSE_SOCKET[] = "+USOCL";   // Close a socket
@@ -67,8 +67,8 @@ const char LTE_SHIELD_WRITE_SOCKET[] = "+USOWR";   // Write data to a socket
 const char LTE_SHIELD_READ_SOCKET[] = "+USORD";    // Read from a socket
 const char LTE_SHIELD_LISTEN_SOCKET[] = "+USOLI";  // Listen for connection on socket
 // ### SMS
-const char LTE_SHIELD_MESSAGE_FORMAT[] = "+CMGF";  // Set SMS message format
-const char LTE_SHIELD_SEND_TEXT[] = "+CMGS";       // Send SMS message
+const char LTE_SHIELD_MESSAGE_FORMAT[] = "+CMGF"; // Set SMS message format
+const char LTE_SHIELD_SEND_TEXT[] = "+CMGS";      // Send SMS message
 // ### GPS
 const char LTE_SHIELD_GPS_POWER[] = "+UGPS";
 const char LTE_SHIELD_GPS_REQUEST_LOCATION[] = "+ULOC";
@@ -87,19 +87,18 @@ const char ASCII_ESC = 0x1B;
 
 #define NUM_SUPPORTED_BAUD 6
 const unsigned long LTE_SHIELD_SUPPORTED_BAUD[NUM_SUPPORTED_BAUD] =
-{
-    115200,
-    9600,
-    19200,
-    38400,
-    57600,
-    230400
-};
+    {
+        115200,
+        9600,
+        19200,
+        38400,
+        57600,
+        230400};
 #define LTE_SHIELD_DEFAULT_BAUD_RATE 115200
 
 char lteShieldRXBuffer[128];
 
-static boolean parseGPRMCString(char * rmcString, PositionData * pos, ClockData * clk, SpeedData * spd);
+static boolean parseGPRMCString(char *rmcString, PositionData *pos, ClockData *clk, SpeedData *spd);
 
 LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
 {
@@ -119,7 +118,7 @@ LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
 }
 
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
-boolean LTE_Shield::begin(SoftwareSerial & softSerial, unsigned long baud)
+boolean LTE_Shield::begin(SoftwareSerial &softSerial, unsigned long baud)
 {
     LTE_Shield_error_t err;
 
@@ -153,7 +152,7 @@ boolean LTE_Shield::poll(void)
     int avail = 0;
     char c = 0;
     bool handled = false;
-    
+
     memset(lteShieldRXBuffer, 0, 128);
 
     if (hwAvailable())
@@ -179,13 +178,13 @@ boolean LTE_Shield::poll(void)
             unsigned int port, listenPort;
             IPAddress remoteIP, localIP;
 
-            if(sscanf(lteShieldRXBuffer,
-                "+UUSOLI: %d,\"%d.%d.%d.%d\",%u,%d,\"%d.%d.%d.%d\",%u",
-                &socket, 
-                &remoteIP[0], &remoteIP[1], &remoteIP[2], &remoteIP[3],
-                &port, &listenSocket, 
-                &localIP[0], &localIP[1], &localIP[2], &localIP[3], 
-                &listenPort) > 4)
+            if (sscanf(lteShieldRXBuffer,
+                       "+UUSOLI: %d,\"%d.%d.%d.%d\",%u,%d,\"%d.%d.%d.%d\",%u",
+                       &socket,
+                       &remoteIP[0], &remoteIP[1], &remoteIP[2], &remoteIP[3],
+                       &port, &listenSocket,
+                       &localIP[0], &localIP[1], &localIP[2], &localIP[3],
+                       &listenPort) > 4)
             {
                 parseSocketListenIndication(localIP, remoteIP);
                 handled = true;
@@ -195,11 +194,11 @@ boolean LTE_Shield::poll(void)
             int socket;
 
             if (sscanf(lteShieldRXBuffer,
-                "+UUSOCL: %d", &socket) == 1)
+                       "+UUSOCL: %d", &socket) == 1)
             {
                 if ((socket >= 0) && (socket <= 6))
                 {
-                    if (_socketCloseCallback != NULL) 
+                    if (_socketCloseCallback != NULL)
                     {
                         _socketCloseCallback(socket);
                     }
@@ -216,24 +215,25 @@ boolean LTE_Shield::poll(void)
             unsigned int latH, lonH, altU, speedU, trackU;
             char latL[10], lonL[10];
 
-            if (strstr(lteShieldRXBuffer, "+UULOC")) 
+            if (strstr(lteShieldRXBuffer, "+UULOC"))
             {
                 // Found a Location string!
-                scanNum = sscanf(lteShieldRXBuffer, 
-                    "+UULOC: %hhu/%hhu/%u,%hhu:%hhu:%hhu.%u,%u.%[^,],%u.%[^,],%u,%lu,%u,%u,*%s",
-                    &clck.date.day, &clck.date.month, &clck.date.year,
-                    &clck.time.hour, &clck.time.minute, &clck.time.second, &clck.time.ms,
-                    &latH, latL, &lonH, lonL, &altU, &uncertainty,
-                    &speedU, &trackU);
-                if (scanNum < 13) return false; // Break out if we didn't find enough
+                scanNum = sscanf(lteShieldRXBuffer,
+                                 "+UULOC: %hhu/%hhu/%u,%hhu:%hhu:%hhu.%u,%u.%[^,],%u.%[^,],%u,%lu,%u,%u,*%s",
+                                 &clck.date.day, &clck.date.month, &clck.date.year,
+                                 &clck.time.hour, &clck.time.minute, &clck.time.second, &clck.time.ms,
+                                 &latH, latL, &lonH, lonL, &altU, &uncertainty,
+                                 &speedU, &trackU);
+                if (scanNum < 13)
+                    return false; // Break out if we didn't find enough
 
-                gps.lat = (float) latH + ((float)atol(latL) / pow(10, strlen(latL)));
-                gps.lon = (float) lonH + ((float)atol(lonL) / pow(10, strlen(lonL)));
-                gps.alt = (float) altU;
+                gps.lat = (float)latH + ((float)atol(latL) / pow(10, strlen(latL)));
+                gps.lon = (float)lonH + ((float)atol(lonL) / pow(10, strlen(lonL)));
+                gps.alt = (float)altU;
                 if (scanNum == 15) // If detailed response, get speed data
                 {
-                    spd.speed = (float) speedU;
-                    spd.track = (float) trackU;
+                    spd.speed = (float)speedU;
+                    spd.track = (float)trackU;
                 }
 
                 if (_gpsRequestCallback != NULL)
@@ -242,8 +242,8 @@ boolean LTE_Shield::poll(void)
                 }
             }
         }
-        
-        if ( (handled == false) && (strlen(lteShieldRXBuffer) > 2) )
+
+        if ((handled == false) && (strlen(lteShieldRXBuffer) > 2))
         {
             //Serial.println("Poll: " + String(lteShieldRXBuffer));
         }
@@ -265,8 +265,8 @@ void LTE_Shield::setSocketCloseCallback(void (*socketCloseCallback)(int))
     _socketCloseCallback = socketCloseCallback;
 }
 
-void LTE_Shield::setGpsReadCallback(void (*gpsRequestCallback)(ClockData time, 
-    PositionData gps, SpeedData spd, unsigned long uncertainty))
+void LTE_Shield::setGpsReadCallback(void (*gpsRequestCallback)(ClockData time,
+                                                               PositionData gps, SpeedData spd, unsigned long uncertainty))
 {
     _gpsRequestCallback = gpsRequestCallback;
 }
@@ -283,7 +283,7 @@ size_t LTE_Shield::write(uint8_t c)
         return _softSerial->write(c);
     }
 #endif
-    return (size_t) 0;
+    return (size_t)0;
 }
 
 size_t LTE_Shield::write(const char *str)
@@ -298,10 +298,10 @@ size_t LTE_Shield::write(const char *str)
         return _softSerial->print(str);
     }
 #endif
-    return (size_t) 0;
+    return (size_t)0;
 }
 
-size_t LTE_Shield::write(const char * buffer, size_t size)
+size_t LTE_Shield::write(const char *buffer, size_t size)
 {
     if (_hardSerial != NULL)
     {
@@ -313,16 +313,16 @@ size_t LTE_Shield::write(const char * buffer, size_t size)
         return _softSerial->print(buffer);
     }
 #endif
-    return (size_t) 0;
+    return (size_t)0;
 }
 
 LTE_Shield_error_t LTE_Shield::at(void)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     err = sendCommandWithResponse(NULL, LTE_SHIELD_RESPONSE_OK, NULL,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     return err;
 }
@@ -330,10 +330,11 @@ LTE_Shield_error_t LTE_Shield::at(void)
 LTE_Shield_error_t LTE_Shield::enableEcho(boolean enable)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_ECHO) + 2);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     if (enable)
     {
         sprintf(command, "%s1", LTE_SHIELD_COMMAND_ECHO);
@@ -342,8 +343,8 @@ LTE_Shield_error_t LTE_Shield::enableEcho(boolean enable)
     {
         sprintf(command, "%s0", LTE_SHIELD_COMMAND_ECHO);
     }
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
 
@@ -352,14 +353,14 @@ LTE_Shield_error_t LTE_Shield::enableEcho(boolean enable)
 
 String LTE_Shield::imei(void)
 {
-    char * response;
+    char *response;
     char imeiResponse[16];
     LTE_Shield_error_t err;
-    
+
     response = lte_calloc_char(sizeof(imeiResponse) + 16);
 
-    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_IMEI, 
-        LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_IMEI,
+                                  LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         if (sscanf(response, "\r\n%s\r\n", imeiResponse) != 1)
@@ -368,19 +369,20 @@ String LTE_Shield::imei(void)
         }
     }
     free(response);
-    return String(imeiResponse);;
+    return String(imeiResponse);
+    ;
 }
 
 String LTE_Shield::imsi(void)
 {
-    char * response;
+    char *response;
     char imsiResponse[16];
     LTE_Shield_error_t err;
-    
+
     response = lte_calloc_char(sizeof(imsiResponse) + 16);
 
-    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_IMSI, 
-        LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_IMSI,
+                                  LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         if (sscanf(response, "\r\n%s\r\n", imsiResponse) != 1)
@@ -394,14 +396,14 @@ String LTE_Shield::imsi(void)
 
 String LTE_Shield::ccid(void)
 {
-    char * response;
+    char *response;
     char ccidResponse[21];
     LTE_Shield_error_t err;
-    
+
     response = lte_calloc_char(sizeof(ccidResponse) + 16);
 
-    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_CCID, 
-        LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(LTE_SHIELD_COMMAND_CCID,
+                                  LTE_SHIELD_RESPONSE_OK, response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         if (sscanf(response, "\r\n+CCID: %s", ccidResponse) != 1)
@@ -416,7 +418,7 @@ String LTE_Shield::ccid(void)
 LTE_Shield_error_t LTE_Shield::reset(void)
 {
     LTE_Shield_error_t err;
-    
+
     err = functionality(SILENT_RESET);
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
@@ -440,13 +442,14 @@ LTE_Shield_error_t LTE_Shield::reset(void)
 String LTE_Shield::clock(void)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    char * clockBegin;
-    char * clockEnd;
+    char *command;
+    char *response;
+    char *clockBegin;
+    char *clockEnd;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_CLOCK) + 2);
-    if (command == NULL) return "";
+    if (command == NULL)
+        return "";
     sprintf(command, "%s?", LTE_SHIELD_COMMAND_CLOCK);
 
     response = lte_calloc_char(48);
@@ -456,21 +459,22 @@ String LTE_Shield::clock(void)
         return "";
     }
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return "";
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return "";
 
     // Response format: \r\n+CCLK: "YY/MM/DD,HH:MM:SS-TZ"\r\n\r\nOK\r\n
     clockBegin = strchr(response, '\"'); // Find first quote
-    if (clockBegin == NULL) 
+    if (clockBegin == NULL)
     {
         free(command);
         free(response);
         return "";
     }
-    clockBegin += 1; // Increment pointer to begin at first number
+    clockBegin += 1;                     // Increment pointer to begin at first number
     clockEnd = strchr(clockBegin, '\"'); // Find last quote
-    if (clockEnd == NULL) 
+    if (clockEnd == NULL)
     {
         free(command);
         free(response);
@@ -480,40 +484,41 @@ String LTE_Shield::clock(void)
 
     free(command);
     free(response);
-    
+
     return String(clockBegin);
 }
 
-LTE_Shield_error_t LTE_Shield::clock(uint8_t * y, uint8_t * mo, uint8_t * d, 
-        uint8_t * h, uint8_t * min, uint8_t * s, uint8_t * tz)
+LTE_Shield_error_t LTE_Shield::clock(uint8_t *y, uint8_t *mo, uint8_t *d,
+                                     uint8_t *h, uint8_t *min, uint8_t *s, uint8_t *tz)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    char * clockBegin;
-    char * clockEnd;
+    char *command;
+    char *response;
+    char *clockBegin;
+    char *clockEnd;
 
     int iy, imo, id, ih, imin, is, itz;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_CLOCK) + 2);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_COMMAND_CLOCK);
 
     response = lte_calloc_char(48);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     // Response format: \r\n+CCLK: "YY/MM/DD,HH:MM:SS-TZ"\r\n\r\nOK\r\n
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         if (sscanf(response, "\r\n+CCLK: \"%d/%d/%d,%d:%d:%d-%d\"\r\n",
-            &iy, &imo, &id, &ih, &imin, &is, &itz) == 7)
+                   &iy, &imo, &id, &ih, &imin, &is, &itz) == 7)
         {
             *y = iy;
             *mo = imo;
@@ -531,26 +536,28 @@ LTE_Shield_error_t LTE_Shield::clock(uint8_t * y, uint8_t * mo, uint8_t * d,
 LTE_Shield_error_t LTE_Shield::autoTimeZone(boolean enable)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_AUTO_TZ) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d", LTE_SHIELD_COMMAND_AUTO_TZ, enable ? 1 : 0);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
-        NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+                                  NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     return err;
 }
 
 int8_t LTE_Shield::rssi(void)
 {
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     LTE_Shield_error_t err;
     int rssi;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_SIGNAL_QUALITY) + 1);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s", LTE_SHIELD_SIGNAL_QUALITY);
 
     response = lte_calloc_char(48);
@@ -560,9 +567,10 @@ int8_t LTE_Shield::rssi(void)
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
-    err = sendCommandWithResponse(command, 
-        LTE_SHIELD_RESPONSE_OK, response, 10000, AT_COMMAND);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return -1;
+    err = sendCommandWithResponse(command,
+                                  LTE_SHIELD_RESPONSE_OK, response, 10000, AT_COMMAND);
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return -1;
 
     if (sscanf(response, "\r\n+CSQ: %d,%*d", &rssi) != 1)
     {
@@ -576,13 +584,14 @@ int8_t LTE_Shield::rssi(void)
 
 LTE_Shield_registration_status_t LTE_Shield::registration(void)
 {
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     LTE_Shield_error_t err;
     int status;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_REGISTRATION_STATUS) + 2);
-    if (command == NULL) return LTE_SHIELD_REGISTRATION_INVALID;
+    if (command == NULL)
+        return LTE_SHIELD_REGISTRATION_INVALID;
     sprintf(command, "%s?", LTE_SHIELD_REGISTRATION_STATUS);
 
     response = lte_calloc_char(48);
@@ -592,9 +601,10 @@ LTE_Shield_registration_status_t LTE_Shield::registration(void)
         return LTE_SHIELD_REGISTRATION_INVALID;
     }
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT, AT_COMMAND);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return LTE_SHIELD_REGISTRATION_INVALID;
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT, AT_COMMAND);
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return LTE_SHIELD_REGISTRATION_INVALID;
 
     if (sscanf(response, "\r\n+CREG: %*d,%d", &status) != 1)
     {
@@ -610,23 +620,26 @@ boolean LTE_Shield::setNetwork(mobile_network_operator_t mno)
     mobile_network_operator_t currentMno;
 
     // Check currently set MNO
-    if (getMno(&currentMno) != LTE_SHIELD_ERROR_SUCCESS) {
+    if (getMno(&currentMno) != LTE_SHIELD_ERROR_SUCCESS)
+    {
         return false;
     }
-    if (currentMno == mno) 
+    if (currentMno == mno)
     {
         return true;
     }
 
-    if (functionality(MINIMUM_FUNCTIONALITY) != LTE_SHIELD_ERROR_SUCCESS) {
+    if (functionality(MINIMUM_FUNCTIONALITY) != LTE_SHIELD_ERROR_SUCCESS)
+    {
         return false;
     }
 
-    if (setMno(mno) != LTE_SHIELD_ERROR_SUCCESS) {
+    if (setMno(mno) != LTE_SHIELD_ERROR_SUCCESS)
+    {
         return false;
     }
 
-    if (reset() != LTE_SHIELD_ERROR_SUCCESS) 
+    if (reset() != LTE_SHIELD_ERROR_SUCCESS)
     {
         return false;
     }
@@ -650,16 +663,19 @@ mobile_network_operator_t LTE_Shield::getNetwork(void)
 LTE_Shield_error_t LTE_Shield::setAPN(String apn, uint8_t cid, LTE_Shield_pdp_type pdpType)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
     char pdpStr[8];
 
     memset(pdpStr, 0, 8);
 
-    if (cid >= 8) return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
+    if (cid >= 8)
+        return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_PDP_DEF) + strlen(apn.c_str()) + 16);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    switch (pdpType) {
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    switch (pdpType)
+    {
     case PDP_TYPE_INVALID:
         return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
         break;
@@ -677,26 +693,27 @@ LTE_Shield_error_t LTE_Shield::setAPN(String apn, uint8_t cid, LTE_Shield_pdp_ty
         break;
     }
     sprintf(command, "%s=%d,\"%s\",\"%s\"", LTE_SHIELD_MESSAGE_PDP_DEF,
-        cid, pdpStr, apn.c_str());
+            cid, pdpStr, apn.c_str());
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
 
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
+LTE_Shield_error_t LTE_Shield::getAPN(String *apn, IPAddress *ip)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    char * searchPtr;
+    char *command;
+    char *response;
+    char *searchPtr;
     int ipOctets[4];
 
     command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_PDP_DEF) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_MESSAGE_PDP_DEF);
 
     response = lte_calloc_char(128);
@@ -707,7 +724,7 @@ LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
     }
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
@@ -717,7 +734,7 @@ LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
         {
             searchPtr += strlen("+CGDCONT: ");
             // Search to the third double-quote
-            for (int i = 0; i < 3; i ++) 
+            for (int i = 0; i < 3; i++)
             {
                 searchPtr = strchr(++searchPtr, '\"');
             }
@@ -733,7 +750,7 @@ LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
                 if (searchPtr != NULL)
                 {
                     int scanned = sscanf(searchPtr, "\",\"%d.%d.%d.%d\"",
-                        &ipOctets[0], &ipOctets[1], &ipOctets[2], &ipOctets[3]);
+                                         &ipOctets[0], &ipOctets[1], &ipOctets[2], &ipOctets[3]);
                     if (scanned == 4)
                     {
                         for (int octet = 0; octet < 4; octet++)
@@ -756,7 +773,7 @@ LTE_Shield_error_t LTE_Shield::getAPN(String * apn, IPAddress * ip)
     return err;
 }
 
-const char * PPP_L2P[5] = {
+const char *PPP_L2P[5] = {
     "",
     "PPP",
     "M-HEX",
@@ -765,10 +782,10 @@ const char * PPP_L2P[5] = {
 };
 
 LTE_Shield_error_t LTE_Shield::enterPPP(uint8_t cid, char dialing_type_char,
-     unsigned long dialNumber, LTE_Shield::LTE_Shield_l2p_t l2p)
+                                        unsigned long dialNumber, LTE_Shield::LTE_Shield_l2p_t l2p)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     if ((dialing_type_char != 0) && (dialing_type_char != 'T') &&
         (dialing_type_char != 'P'))
@@ -777,46 +794,48 @@ LTE_Shield_error_t LTE_Shield::enterPPP(uint8_t cid, char dialing_type_char,
     }
 
     command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_ENTER_PPP) + 32);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     if (dialing_type_char != 0)
     {
         sprintf(command, "%s%c*%lu**%s*%hhu#", LTE_SHIELD_MESSAGE_ENTER_PPP, dialing_type_char,
-            dialNumber, PPP_L2P[l2p], cid);
+                dialNumber, PPP_L2P[l2p], cid);
     }
     else
     {
         sprintf(command, "%s*%lu**%s*%hhu#", LTE_SHIELD_MESSAGE_ENTER_PPP,
-            dialNumber, PPP_L2P[l2p], cid);
+                dialNumber, PPP_L2P[l2p], cid);
     }
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
     free(command);
     return err;
 }
 
-uint8_t LTE_Shield::getOperators(struct operator_stats * opRet, int maxOps)
+uint8_t LTE_Shield::getOperators(struct operator_stats *opRet, int maxOps)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     uint8_t opsSeen = 0;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=?", LTE_SHIELD_OPERATOR_SELECTION);
 
-    response = lte_calloc_char(maxOps*48 + 16);
+    response = lte_calloc_char(maxOps * 48 + 16);
     if (response == NULL)
     {
-        free (command);
+        free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
     // AT+COPS maximum response time is 3 minutes (180000 ms)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
-        180000);
+                                  180000);
 
     // Sample responses:
     // +COPS: (3,"Verizon Wireless","VzW","311480",8),,(0,1,2,3,4),(0,1,2)
@@ -824,8 +843,8 @@ uint8_t LTE_Shield::getOperators(struct operator_stats * opRet, int maxOps)
 
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
-        char * opBegin;
-        char * opEnd;
+        char *opBegin;
+        char *opEnd;
         int op = 0;
         int sscanRead = 0;
         int stat;
@@ -839,13 +858,15 @@ uint8_t LTE_Shield::getOperators(struct operator_stats * opRet, int maxOps)
         for (; op < maxOps; op++)
         {
             opBegin = strchr(opBegin, '(');
-            if (opBegin == NULL) break;
+            if (opBegin == NULL)
+                break;
             opEnd = strchr(opBegin, ')');
-            if (opEnd == NULL) break;
-                    
+            if (opEnd == NULL)
+                break;
+
             int sscanRead = sscanf(opBegin, "(%d,\"%[^\"]\",\"%[^\"]\",\"%lu\",%d)%*s",
-                &stat, longOp, shortOp, &numOp, &act);
-            if (sscanRead == 5) 
+                                   &stat, longOp, shortOp, &numOp, &act);
+            if (sscanRead == 5)
             {
                 opRet[op].stat = stat;
                 opRet[op].longOp = (String)(longOp);
@@ -872,33 +893,35 @@ uint8_t LTE_Shield::getOperators(struct operator_stats * opRet, int maxOps)
 LTE_Shield_error_t LTE_Shield::registerOperator(struct operator_stats oper)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
-    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION)  + 24);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 24);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=1,2,\"%lu\"", LTE_SHIELD_OPERATOR_SELECTION, oper.numOp);
 
     // AT+COPS maximum response time is 3 minutes (180000 ms)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
-        180000);
-    
+                                  180000);
+
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::getOperator(String * oper)
+LTE_Shield_error_t LTE_Shield::getOperator(String *oper)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    char * searchPtr;
+    char *command;
+    char *response;
+    char *searchPtr;
     char mode;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_OPERATOR_SELECTION);
 
     response = lte_calloc_char(64);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
@@ -906,7 +929,7 @@ LTE_Shield_error_t LTE_Shield::getOperator(String * oper)
 
     // AT+COPS maximum response time is 3 minutes (180000 ms)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
-        180000);
+                                  180000);
 
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
@@ -914,8 +937,8 @@ LTE_Shield_error_t LTE_Shield::getOperator(String * oper)
         if (searchPtr != NULL)
         {
             searchPtr += strlen("+COPS: "); //  Move searchPtr to first char
-            mode = *searchPtr; // Read first char -- should be mode
-            if (mode == '2') // Check for de-register
+            mode = *searchPtr;              // Read first char -- should be mode
+            if (mode == '2')                // Check for de-register
             {
                 err = LTE_SHIELD_ERROR_DEREGISTERED;
             }
@@ -949,69 +972,73 @@ LTE_Shield_error_t LTE_Shield::getOperator(String * oper)
 LTE_Shield_error_t LTE_Shield::deregisterOperator(void)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
-    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION)  + 4);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    command = lte_calloc_char(strlen(LTE_SHIELD_OPERATOR_SELECTION) + 4);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=2", LTE_SHIELD_OPERATOR_SELECTION);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
     return err;
 }
 
 LTE_Shield_error_t LTE_Shield::setSMSMessageFormat(lte_shield_message_format_t textMode)
 {
-    char * command;
+    char *command;
     LTE_Shield_error_t err;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_MESSAGE_FORMAT) + 4);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    sprintf(command, "%s=%d", LTE_SHIELD_MESSAGE_FORMAT, 
-        (textMode == LTE_SHIELD_MESSAGE_FORMAT_TEXT) ? 1 : 0);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=%d", LTE_SHIELD_MESSAGE_FORMAT,
+            (textMode == LTE_SHIELD_MESSAGE_FORMAT_TEXT) ? 1 : 0);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
     free(command);
     return err;
 }
 
 LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
 {
-    char * command;
-    char * messageCStr;
-    char * numberCStr;
+    char *command;
+    char *messageCStr;
+    char *numberCStr;
     int messageIndex;
     LTE_Shield_error_t err;
 
     numberCStr = lte_calloc_char(number.length() + 2);
-    if (numberCStr == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (numberCStr == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     number.toCharArray(numberCStr, number.length() + 1);
 
     command = lte_calloc_char(strlen(LTE_SHIELD_SEND_TEXT) + strlen(numberCStr) + 8);
     if (command != NULL)
     {
-    sprintf(command, "%s=\"%s\"", LTE_SHIELD_SEND_TEXT, numberCStr);
+        sprintf(command, "%s=\"%s\"", LTE_SHIELD_SEND_TEXT, numberCStr);
 
-    err = sendCommandWithResponse(command, ">", NULL, 
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    free(command);
+        err = sendCommandWithResponse(command, ">", NULL,
+                                      LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+        free(command);
         free(numberCStr);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return err;
+        if (err != LTE_SHIELD_ERROR_SUCCESS)
+            return err;
 
-    messageCStr = lte_calloc_char(message.length() + 1);
+        messageCStr = lte_calloc_char(message.length() + 1);
         if (messageCStr == NULL)
-    {
-        hwWrite(ASCII_CTRL_Z);
-        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    }
-    message.toCharArray(messageCStr, message.length() + 1);
-    messageCStr[message.length()] = ASCII_CTRL_Z;
+        {
+            hwWrite(ASCII_CTRL_Z);
+            return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+        }
+        message.toCharArray(messageCStr, message.length() + 1);
+        messageCStr[message.length()] = ASCII_CTRL_Z;
 
-        err = sendCommandWithResponse(messageCStr, LTE_SHIELD_RESPONSE_OK, 
-            NULL, 180000, NOT_AT_COMMAND);
+        err = sendCommandWithResponse(messageCStr, LTE_SHIELD_RESPONSE_OK,
+                                      NULL, 180000, NOT_AT_COMMAND);
     }
     else
     {
@@ -1019,14 +1046,14 @@ LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
     }
 
     free(messageCStr);
-    
+
     return err;
 }
 
 LTE_Shield_error_t LTE_Shield::setBaud(unsigned long baud)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
     int b = 0;
 
     // Error check -- ensure supported baud
@@ -1044,30 +1071,32 @@ LTE_Shield_error_t LTE_Shield::setBaud(unsigned long baud)
 
     // Construct command
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_BAUD) + 7 + 12);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%lu", LTE_SHIELD_COMMAND_BAUD, baud);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        NULL, LTE_SHIELD_SET_BAUD_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  NULL, LTE_SHIELD_SET_BAUD_TIMEOUT);
 
     free(command);
 
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::setGpioMode(LTE_Shield_gpio_t gpio, 
-    LTE_Shield_gpio_mode_t mode)
+LTE_Shield_error_t LTE_Shield::setGpioMode(LTE_Shield_gpio_t gpio,
+                                           LTE_Shield_gpio_mode_t mode)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     // Example command: AT+UGPIOC=16,2
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_GPIO) + 7);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_COMMAND_GPIO, gpio, mode);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
 
@@ -1077,36 +1106,38 @@ LTE_Shield_error_t LTE_Shield::setGpioMode(LTE_Shield_gpio_t gpio,
 LTE_Shield::LTE_Shield_gpio_mode_t LTE_Shield::getGpioMode(LTE_Shield_gpio_t gpio)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     char gpioChar[4];
-    char * gpioStart;
+    char *gpioStart;
     int gpioMode;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_GPIO) + 2);
-    if (command == NULL) return GPIO_MODE_INVALID;
+    if (command == NULL)
+        return GPIO_MODE_INVALID;
     sprintf(command, "%s?", LTE_SHIELD_COMMAND_GPIO);
 
     response = lte_calloc_char(96);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return GPIO_MODE_INVALID;
     }
-    
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
-    if (err != LTE_SHIELD_ERROR_SUCCESS) 
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
     {
         free(command);
         free(response);
         return GPIO_MODE_INVALID;
     }
 
-    sprintf(gpioChar, "%d", gpio); // Convert GPIO to char array
+    sprintf(gpioChar, "%d", gpio);          // Convert GPIO to char array
     gpioStart = strstr(response, gpioChar); // Find first occurence of GPIO in response
-    if (gpioStart == NULL) return GPIO_MODE_INVALID; // If not found return invalid
+    if (gpioStart == NULL)
+        return GPIO_MODE_INVALID; // If not found return invalid
     sscanf(gpioStart, "%*d,%d\r\n", &gpioMode);
 
     free(command);
@@ -1118,24 +1149,25 @@ LTE_Shield::LTE_Shield_gpio_mode_t LTE_Shield::getGpioMode(LTE_Shield_gpio_t gpi
 int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int localPort)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     int sockId = -1;
-    char * responseStart;
+    char *responseStart;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_CREATE_SOCKET) + 10);
-    if (command == NULL) return -1;
+    if (command == NULL)
+        return -1;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_CREATE_SOCKET, protocol, localPort);
 
     response = lte_calloc_char(24);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return -1;
     }
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     if (err != LTE_SHIELD_ERROR_SUCCESS)
     {
@@ -1145,7 +1177,7 @@ int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int l
     }
 
     responseStart = strstr(response, "+USOCR");
-    if (responseStart == NULL) 
+    if (responseStart == NULL)
     {
         free(command);
         free(response);
@@ -1153,20 +1185,21 @@ int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int l
     }
 
     sscanf(responseStart, "+USOCR: %d", &sockId);
-    
+
     free(command);
     free(response);
-    
+
     return sockId;
 }
 
 LTE_Shield_error_t LTE_Shield::socketClose(int socket, int timeout)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_CLOSE_SOCKET) + 10);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d", LTE_SHIELD_CLOSE_SOCKET, socket);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, timeout);
@@ -1176,39 +1209,41 @@ LTE_Shield_error_t LTE_Shield::socketClose(int socket, int timeout)
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::socketConnect(int socket, const char * address, 
-    unsigned int port)
+LTE_Shield_error_t LTE_Shield::socketConnect(int socket, const char *address,
+                                             unsigned int port)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_CONNECT_SOCKET) + strlen(address) + 11);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,\"%s\",%d", LTE_SHIELD_CONNECT_SOCKET, socket, address, port);
 
-    err =  sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, LTE_SHIELD_IP_CONNECT_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, LTE_SHIELD_IP_CONNECT_TIMEOUT);
 
     free(command);
 
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::socketWrite(int socket, const char * str)
+LTE_Shield_error_t LTE_Shield::socketWrite(int socket, const char *str)
 {
-    char * command;
+    char *command;
     LTE_Shield_error_t err;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_WRITE_SOCKET) + 8);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_WRITE_SOCKET, socket, strlen(str));
 
-    err = sendCommandWithResponse(command, "@", NULL, 
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, "@", NULL,
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     hwPrint(str);
 
     err = waitForResponse(LTE_SHIELD_RESPONSE_OK, LTE_SHIELD_SOCKET_WRITE_TIMEOUT);
-    
+
     free(command);
     return err;
 }
@@ -1218,34 +1253,35 @@ LTE_Shield_error_t LTE_Shield::socketWrite(int socket, String str)
     return socketWrite(socket, str.c_str());
 }
 
-LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char * readDest)
+LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest)
 {
-    char * command;
-    char * response;
-    char * strBegin;
+    char *command;
+    char *response;
+    char *strBegin;
     int readIndex = 0;
     LTE_Shield_error_t err;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_READ_SOCKET) + 8);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_READ_SOCKET, socket, length);
 
     response = lte_calloc_char(length + strlen(LTE_SHIELD_READ_SOCKET) + 24);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response, 
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         // Find the first double-quote:
         strBegin = strchr(response, '\"');
 
-        if (strBegin == NULL) 
+        if (strBegin == NULL)
         {
             free(command);
             free(response);
@@ -1261,21 +1297,22 @@ LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char * readDes
 
     free(command);
     free(response);
-    
+
     return err;
 }
 
 LTE_Shield_error_t LTE_Shield::socketListen(int socket, unsigned int port)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_LISTEN_SOCKET) + 9);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_LISTEN_SOCKET, socket, port);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
     return err;
@@ -1289,29 +1326,31 @@ IPAddress LTE_Shield::lastRemoteIP(void)
 boolean LTE_Shield::gpsOn(void)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
+    char *command;
+    char *response;
     boolean on = false;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_POWER) + 2);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_GPS_POWER);
 
     response = lte_calloc_char(24);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response, 
-        LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         // Example response: "+UGPS: 0" for off "+UGPS: 1,0,1" for on
         // May be too lazy/simple, but just search for a '1'
-        if (strchr(response, '1') != NULL) on = true;
+        if (strchr(response, '1') != NULL)
+            on = true;
     }
 
     free(command);
@@ -1320,10 +1359,10 @@ boolean LTE_Shield::gpsOn(void)
     return on;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
+LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable, gnss_system_t gnss_sys)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
     boolean gpsState;
 
     // Don't turn GPS on/off if it's already on/off
@@ -1334,7 +1373,8 @@ LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
     }
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_POWER) + 8);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     if (enable)
     {
         sprintf(command, "%s=1,0,%d", LTE_SHIELD_GPS_POWER, gnss_sys);
@@ -1353,47 +1393,64 @@ LTE_Shield_error_t LTE_Shield::gpsPower(boolean enable,  gnss_system_t gnss_sys)
 LTE_Shield_error_t LTE_Shield::gpsEnableClock(boolean enable)
 {
     // AT+UGZDA=<0,1>
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetClock(struct ClockData * clock)
+LTE_Shield_error_t LTE_Shield::gpsGetClock(struct ClockData *clock)
 {
     // AT+UGZDA?
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
 LTE_Shield_error_t LTE_Shield::gpsEnableFix(boolean enable)
 {
     // AT+UGGGA=<0,1>
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetFix(struct PositionData * pos)
+LTE_Shield_error_t LTE_Shield::gpsGetFix(struct PositionData *pos)
 {
     // AT+UGGGA?
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
 LTE_Shield_error_t LTE_Shield::gpsEnablePos(boolean enable)
 {
     // AT+UGGLL=<0,1>
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
-LTE_Shield_error_t LTE_Shield::gpsGetPos(struct PositionData * pos)
+
+LTE_Shield_error_t LTE_Shield::gpsGetPos(struct PositionData *pos)
 {
     // AT+UGGLL?
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
 LTE_Shield_error_t LTE_Shield::gpsEnableSat(boolean enable)
 {
     // AT+UGGSV=<0,1>
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetSat(uint8_t * sats)
+LTE_Shield_error_t LTE_Shield::gpsGetSat(uint8_t *sats)
 {
     // AT+UGGSV?
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
 LTE_Shield_error_t LTE_Shield::gpsEnableRmc(boolean enable)
 {
     // AT+UGRMC=<0,1>
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     if (!gpsOn())
     {
@@ -1405,7 +1462,8 @@ LTE_Shield_error_t LTE_Shield::gpsEnableRmc(boolean enable)
     }
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_GPRMC) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d", LTE_SHIELD_GPS_GPRMC, enable ? 1 : 0);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 10000);
@@ -1414,20 +1472,21 @@ LTE_Shield_error_t LTE_Shield::gpsEnableRmc(boolean enable)
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct SpeedData * spd,
-    struct ClockData * clk, boolean * valid)
+LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData *pos, struct SpeedData *spd,
+                                         struct ClockData *clk, boolean *valid)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    char * rmcBegin;
+    char *command;
+    char *response;
+    char *rmcBegin;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_GPRMC) + 2);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_GPS_GPRMC);
 
     response = lte_calloc_char(96);
-    if (response == NULL) 
+    if (response == NULL)
     {
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
@@ -1438,7 +1497,7 @@ LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct Speed
     {
         // Fast-forward response string to $GPRMC starter
         rmcBegin = strstr(response, "$GPRMC");
-        if (rmcBegin == NULL) 
+        if (rmcBegin == NULL)
         {
             err = LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
         }
@@ -1456,19 +1515,23 @@ LTE_Shield_error_t LTE_Shield::gpsGetRmc(struct PositionData * pos, struct Speed
 LTE_Shield_error_t LTE_Shield::gpsEnableSpeed(boolean enable)
 {
     // AT+UGVTG=<0,1>
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsGetSpeed(struct SpeedData * speed)
+LTE_Shield_error_t LTE_Shield::gpsGetSpeed(struct SpeedData *speed)
 {
     // AT+UGVTG?
+    LTE_Shield_error_t err = LTE_SHIELD_ERROR_SUCCESS;
+    return err;
 }
 
-LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, uint32_t accuracy, 
-    boolean detailed)
+LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, uint32_t accuracy,
+                                          boolean detailed)
 {
     // AT+ULOC=2,<useCellLocate>,<detailed>,<timeout>,<accuracy>
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     // This function will only work if the GPS module is initially turned off.
     if (gpsOn())
@@ -1476,13 +1539,16 @@ LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, uint32_t accurac
         gpsPower(false);
     }
 
-    if (timeout > 999) timeout = 999;
-    if (accuracy > 999999) accuracy = 999999;
+    if (timeout > 999)
+        timeout = 999;
+    if (accuracy > 999999)
+        accuracy = 999999;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_GPS_REQUEST_LOCATION) + 24);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    sprintf(command, "%s=2,3,%d,%d,%d", LTE_SHIELD_GPS_REQUEST_LOCATION, 
-        detailed ? 1 : 0, timeout, accuracy);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=2,3,%d,%d,%d", LTE_SHIELD_GPS_REQUEST_LOCATION,
+            detailed ? 1 : 0, timeout, accuracy);
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, 10000);
 
@@ -1494,8 +1560,8 @@ LTE_Shield_error_t LTE_Shield::gpsRequest(unsigned int timeout, uint32_t accurac
 // Private //
 /////////////
 
-LTE_Shield_error_t LTE_Shield::init(unsigned long baud, 
-    LTE_Shield::LTE_Shield_init_type_t initType)
+LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
+                                    LTE_Shield::LTE_Shield_init_type_t initType)
 {
     LTE_Shield_error_t err;
 
@@ -1520,7 +1586,8 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
     // Use disable echo to test response
     err = enableEcho(false);
 
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return init(baud, LTE_SHIELD_INIT_AUTOBAUD);
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return init(baud, LTE_SHIELD_INIT_AUTOBAUD);
 
     _baud = baud;
     setGpioMode(GPIO1, NETWORK_STATUS);
@@ -1554,15 +1621,16 @@ void LTE_Shield::hwReset(void)
 LTE_Shield_error_t LTE_Shield::functionality(LTE_Shield_functionality_t function)
 {
     LTE_Shield_error_t err;
-    char * command;
+    char *command;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_FUNC) + 4);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d", LTE_SHIELD_COMMAND_FUNC, function);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+
     free(command);
 
     return err;
@@ -1571,15 +1639,16 @@ LTE_Shield_error_t LTE_Shield::functionality(LTE_Shield_functionality_t function
 LTE_Shield_error_t LTE_Shield::setMno(mobile_network_operator_t mno)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
+    char *command;
+    char *response;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_MNO) + 3);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    sprintf(command, "%s=%d", LTE_SHIELD_COMMAND_MNO, (uint8_t) mno);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=%d", LTE_SHIELD_COMMAND_MNO, (uint8_t)mno);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, 
-        NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
+                                  NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
     free(response);
@@ -1587,16 +1656,17 @@ LTE_Shield_error_t LTE_Shield::setMno(mobile_network_operator_t mno)
     return err;
 }
 
-LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t * mno)
+LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t *mno)
 {
     LTE_Shield_error_t err;
-    char * command;
-    char * response;
-    const char * mno_keys = "0123456"; // Valid MNO responses
+    char *command;
+    char *response;
+    const char *mno_keys = "0123456"; // Valid MNO responses
     int i;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_MNO) + 2);
-    if (command == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s?", LTE_SHIELD_COMMAND_MNO);
 
     response = lte_calloc_char(24);
@@ -1605,10 +1675,11 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t * mno)
         free(command);
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
-    
+
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
-        response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return err;
+                                  response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return err;
 
     i = strcspn(response, mno_keys); // Find first occurence of MNO key
     if (i == strlen(response))
@@ -1655,12 +1726,12 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t * mno)
     return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
 }*/
 
-LTE_Shield_error_t LTE_Shield::waitForResponse(const char * expectedResponse, uint16_t timeout)
+LTE_Shield_error_t LTE_Shield::waitForResponse(const char *expectedResponse, uint16_t timeout)
 {
     unsigned long timeIn;
     boolean found = false;
     int index = 0;
-    
+
     timeIn = millis();
 
     while ((!found) && (timeIn + timeout > millis()))
@@ -1685,7 +1756,7 @@ LTE_Shield_error_t LTE_Shield::waitForResponse(const char * expectedResponse, ui
 }
 
 LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
-    const char * command, const char * expectedResponse, char * responseDest, 
+    const char *command, const char *expectedResponse, char *responseDest,
     unsigned long commandTimeout, boolean at)
 {
     unsigned long timeIn;
@@ -1708,7 +1779,7 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
             if (responseDest != NULL)
             {
                 responseDest[destIndex++] = c;
-            } 
+            }
             charsRead++;
             if (c == expectedResponse[index])
             {
@@ -1739,7 +1810,7 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     }
 }
 
-boolean LTE_Shield::sendCommand(const char * command, boolean at)
+boolean LTE_Shield::sendCommand(const char *command, boolean at)
 {
     readAvailable(NULL); // Clear out receive buffer before sending a new command
 
@@ -1760,7 +1831,7 @@ boolean LTE_Shield::sendCommand(const char * command, boolean at)
 LTE_Shield_error_t LTE_Shield::parseSocketReadIndication(int socket, int length)
 {
     LTE_Shield_error_t err;
-    char * readDest;
+    char *readDest;
 
     if ((socket < 0) || (length < 0))
     {
@@ -1768,16 +1839,18 @@ LTE_Shield_error_t LTE_Shield::parseSocketReadIndication(int socket, int length)
     }
 
     readDest = lte_calloc_char(length + 1);
-    if (readDest == NULL) return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
-    
+    if (readDest == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+
     err = socketRead(socket, length, readDest);
-    if (err != LTE_SHIELD_ERROR_SUCCESS) return err;
+    if (err != LTE_SHIELD_ERROR_SUCCESS)
+        return err;
 
     if (_socketReadCallback != NULL)
     {
         _socketReadCallback(socket, String(readDest));
     }
-    
+
     free(readDest);
     return LTE_SHIELD_ERROR_SUCCESS;
 }
@@ -1788,7 +1861,7 @@ LTE_Shield_error_t LTE_Shield::parseSocketListenIndication(IPAddress localIP, IP
     _lastRemoteIP = remoteIP;
 }
 
-LTE_Shield_error_t LTE_Shield::parseSocketCloseIndication(String * closeIndication)
+LTE_Shield_error_t LTE_Shield::parseSocketCloseIndication(String *closeIndication)
 {
     LTE_Shield_error_t err;
     int search;
@@ -1807,7 +1880,7 @@ LTE_Shield_error_t LTE_Shield::parseSocketCloseIndication(String * closeIndicati
     return LTE_SHIELD_ERROR_SUCCESS;
 }
 
-size_t LTE_Shield::hwPrint(const char * s)
+size_t LTE_Shield::hwPrint(const char *s)
 {
     if (_hardSerial != NULL)
     {
@@ -1820,7 +1893,7 @@ size_t LTE_Shield::hwPrint(const char * s)
     }
 #endif
 
-    return (size_t) 0;
+    return (size_t)0;
 }
 
 size_t LTE_Shield::hwWrite(const char c)
@@ -1836,10 +1909,10 @@ size_t LTE_Shield::hwWrite(const char c)
     }
 #endif
 
-    return (size_t) 0;
+    return (size_t)0;
 }
 
-int LTE_Shield::readAvailable(char * inString)
+int LTE_Shield::readAvailable(char *inString)
 {
     int len = 0;
 
@@ -1848,7 +1921,7 @@ int LTE_Shield::readAvailable(char * inString)
         while (_hardSerial->available())
         {
             char c = (char)_hardSerial->read();
-            if (inString != NULL) 
+            if (inString != NULL)
             {
                 inString[len++] = c;
             }
@@ -1864,7 +1937,7 @@ int LTE_Shield::readAvailable(char * inString)
         while (_softSerial->available())
         {
             char c = (char)_softSerial->read();
-            if (inString != NULL) 
+            if (inString != NULL)
             {
                 inString[len++] = c;
             }
@@ -1899,7 +1972,7 @@ char LTE_Shield::readChar(void)
 
 int LTE_Shield::hwAvailable(void)
 {
-    if (_hardSerial != NULL) 
+    if (_hardSerial != NULL)
     {
         return _hardSerial->available();
     }
@@ -1909,13 +1982,13 @@ int LTE_Shield::hwAvailable(void)
         return _softSerial->available();
     }
 #endif
-    
+
     return -1;
 }
 
 void LTE_Shield::beginSerial(unsigned long baud)
 {
-    if (_hardSerial != NULL) 
+    if (_hardSerial != NULL)
     {
         _hardSerial->begin(baud);
     }
@@ -1930,7 +2003,7 @@ void LTE_Shield::beginSerial(unsigned long baud)
 
 void LTE_Shield::setTimeout(unsigned long timeout)
 {
-    if (_hardSerial != NULL) 
+    if (_hardSerial != NULL)
     {
         _hardSerial->setTimeout(timeout);
     }
@@ -1942,9 +2015,9 @@ void LTE_Shield::setTimeout(unsigned long timeout)
 #endif
 }
 
-bool LTE_Shield::find(char * target)
+bool LTE_Shield::find(char *target)
 {
-    if (_hardSerial != NULL) 
+    if (_hardSerial != NULL)
     {
         _hardSerial->find(target);
     }
@@ -1956,12 +2029,11 @@ bool LTE_Shield::find(char * target)
 #endif
 }
 
-
 LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
 {
     LTE_Shield_error_t err = LTE_SHIELD_ERROR_INVALID;
     int b = 0;
-    
+
     while ((err != LTE_SHIELD_ERROR_SUCCESS) && (b < NUM_SUPPORTED_BAUD))
     {
         beginSerial(LTE_SHIELD_SUPPORTED_BAUD[b++]);
@@ -1977,23 +2049,25 @@ LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
     return err;
 }
 
-char * LTE_Shield::lte_calloc_char(size_t num)
+char *LTE_Shield::lte_calloc_char(size_t num)
 {
-    return (char *) calloc(num, sizeof(char));
+    return (char *)calloc(num, sizeof(char));
 }
 
 // GPS Helper Functions:
 
 // Read a source string until a delimiter is hit, store the result in destination
-static char * readDataUntil(char * destination, unsigned int destSize, 
-    char * source, char delimiter) {
-    
-    char * strEnd;
+static char *readDataUntil(char *destination, unsigned int destSize,
+                           char *source, char delimiter)
+{
+
+    char *strEnd;
     size_t len;
 
     strEnd = strchr(source, delimiter);
 
-    if (strEnd != NULL) {
+    if (strEnd != NULL)
+    {
         len = strEnd - source;
         memset(destination, 0, destSize);
         memcpy(destination, source, len);
@@ -2004,10 +2078,10 @@ static char * readDataUntil(char * destination, unsigned int destSize,
 
 #define TEMP_NMEA_DATA_SIZE 16
 
-static boolean parseGPRMCString(char * rmcString, PositionData * pos,
-                         ClockData * clk, SpeedData * spd)
+static boolean parseGPRMCString(char *rmcString, PositionData *pos,
+                                ClockData *clk, SpeedData *spd)
 {
-    char * ptr, *search;
+    char *ptr, *search;
     unsigned long tTemp;
     char tempData[TEMP_NMEA_DATA_SIZE];
 
@@ -2019,7 +2093,7 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
     // Find time:
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
     // Next comma should be present and not the next position
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         pos->utc = atof(tempData);
         tTemp = pos->utc;
@@ -2028,8 +2102,8 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
         clk->time.minute = tTemp / 100;
         tTemp -= ((unsigned long)clk->time.minute * 100);
         clk->time.second = tTemp;
-    } 
-    else 
+    }
+    else
     {
         pos->utc = 0.0;
         clk->time.hour = 0;
@@ -2041,11 +2115,11 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
     // Find status character:
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
     // Should be a single character
-    if ((search != NULL) && (search == ptr + 1)) 
+    if ((search != NULL) && (search == ptr + 1))
     {
         pos->status = *ptr; // Assign char at ptr to status
-    } 
-    else 
+    }
+    else
     {
         pos->status = 'X'; // Made up very bad status
     }
@@ -2053,22 +2127,22 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find latitude:
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         pos->lat = atof(tempData);
-    } 
-    else 
+    }
+    else
     {
         pos->lat = 0.0;
     }
     ptr = search + 1;
     // Find latitude hemishpere
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search == ptr + 1)) 
+    if ((search != NULL) && (search == ptr + 1))
     {
         pos->latDir = *ptr; // Assign char at ptr to status
-    } 
-    else 
+    }
+    else
     {
         pos->latDir = 'X';
     }
@@ -2076,22 +2150,22 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find longitude:
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         pos->lon = atof(tempData);
-    } 
-    else 
+    }
+    else
     {
         pos->lon = 0.0;
     }
     ptr = search + 1;
     // Find latitude hemishpere
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search == ptr + 1)) 
+    if ((search != NULL) && (search == ptr + 1))
     {
         pos->lonDir = *ptr; // Assign char at ptr to status
-    } 
-    else 
+    }
+    else
     {
         pos->lonDir = 'X';
     }
@@ -2099,22 +2173,22 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find speed
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         spd->speed = atof(tempData);
-    } 
-    else 
+    }
+    else
     {
         spd->speed = 0.0;
     }
     ptr = search + 1;
     // Find track
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         spd->track = atof(tempData);
-    } 
-    else 
+    }
+    else
     {
         spd->track = 0.0;
     }
@@ -2122,7 +2196,7 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find date
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         tTemp = atol(tempData);
         clk->date.day = tTemp / 10000;
@@ -2130,8 +2204,8 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
         clk->date.month = tTemp / 100;
         tTemp -= ((unsigned long)clk->date.month * 100);
         clk->date.year = tTemp;
-    } 
-    else 
+    }
+    else
     {
         clk->date.day = 0;
         clk->date.month = 0;
@@ -2141,22 +2215,22 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find magnetic variation in degrees:
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search != ptr)) 
+    if ((search != NULL) && (search != ptr))
     {
         spd->magVar = atof(tempData);
-    } 
-    else 
+    }
+    else
     {
         spd->magVar = 0.0;
     }
     ptr = search + 1;
     // Find magnetic variation direction
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, ',');
-    if ((search != NULL) && (search == ptr + 1)) 
+    if ((search != NULL) && (search == ptr + 1))
     {
         spd->magVarDir = *ptr; // Assign char at ptr to status
-    } 
-    else 
+    }
+    else
     {
         spd->magVarDir = 'X';
     }
@@ -2164,11 +2238,11 @@ static boolean parseGPRMCString(char * rmcString, PositionData * pos,
 
     // Find position system mode
     search = readDataUntil(tempData, TEMP_NMEA_DATA_SIZE, ptr, '*');
-    if ((search != NULL) && (search = ptr + 1)) 
+    if ((search != NULL) && (search = ptr + 1))
     {
         pos->mode = *ptr;
-    } 
-    else 
+    }
+    else
     {
         pos->mode = 'X';
     }
