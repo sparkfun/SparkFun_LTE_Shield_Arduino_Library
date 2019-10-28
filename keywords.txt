@@ -107,6 +107,10 @@ gpsGetRmc	KEYWORD2
 gpsEnableSpeed	KEYWORD2
 gpsGetSpeed	KEYWORD2
 gpsRequest	KEYWORD2
+enableDebugging	KEYWORD2
+disableDebugging	KEYWORD2
+debug	KEYWORD2
+debugln	KEYWORD2
 
 #######################################
 # Constants 	LITERAL1

@@ -1564,10 +1564,13 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
 {
     LTE_Shield_error_t err;
 
+    debugln(F("Begin module init."));
+
     beginSerial(baud); // Begin serial
 
     if (initType == LTE_SHIELD_INIT_AUTOBAUD)
     {
+        debugln(F("Attempting autobaud connection to module."));
         if (autobaud(baud) != LTE_SHIELD_ERROR_SUCCESS)
         {
             return init(baud, LTE_SHIELD_INIT_RESET);
@@ -1575,7 +1578,9 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
     }
     else if (initType == LTE_SHIELD_INIT_RESET)
     {
+        debugln(F("Power cycling module."));
         powerOn();
+        delay(1000);
         if (at() != LTE_SHIELD_ERROR_SUCCESS)
         {
             return init(baud, LTE_SHIELD_INIT_AUTOBAUD);
@@ -1586,7 +1591,12 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
     err = enableEcho(false);
 
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        debugln(F("Module failed echo test."));
         return init(baud, LTE_SHIELD_INIT_AUTOBAUD);
+    }
+
+    debugln(F("Module responded successfully."));
 
     _baud = baud;
     setGpioMode(GPIO1, NETWORK_STATUS);
@@ -1607,6 +1617,8 @@ void LTE_Shield::powerOn(void)
     digitalWrite(_powerPin, LOW);
     delay(LTE_SHIELD_POWER_PULSE_PERIOD);
     pinMode(_powerPin, INPUT); // Return to high-impedance, rely on SARA module internal pull-up
+    delay(2000);               //Wait before sending AT commands to module. 100 is too short.
+    debugln("Power cycle complete");
 }
 
 void LTE_Shield::hwReset(void)
@@ -2054,6 +2066,28 @@ LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
 char *LTE_Shield::lte_calloc_char(size_t num)
 {
     return (char *)calloc(num, sizeof(char));
+}
+
+//Enable or disable the printing of extra debug statements
+void LTE_Shield::enableDebugging(Stream &debugPort)
+{
+    _debugSerial = &debugPort; //Grab which port the user wants us to use for debugging
+
+    _printDebug = true; //Should we print the commands we send? Good for debugging
+}
+void LTE_Shield::disableDebugging(void)
+{
+    _printDebug = false; //Turn off extra print statements
+}
+void LTE_Shield::debug(String toPrint)
+{
+    if (_printDebug)
+        _debugSerial->print(toPrint);
+}
+void LTE_Shield::debugln(String toPrint)
+{
+    if (_printDebug)
+        _debugSerial->println(toPrint);
 }
 
 // GPS Helper Functions:

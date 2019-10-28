@@ -319,6 +319,11 @@ public:
 
     LTE_Shield_error_t gpsRequest(unsigned int timeout, uint32_t accuracy, boolean detailed = true);
 
+    void enableDebugging(Stream &debugPort = Serial); //Turn on command sending and response printing. If user doesn't specify then Serial will be used
+    void disableDebugging(void);
+    void debug(String toPrint);
+    void debugln(String toPrint);
+
 private:
     HardwareSerial *_hardSerial;
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
@@ -330,6 +335,9 @@ private:
     unsigned long _baud;
     IPAddress _lastRemoteIP;
     IPAddress _lastLocalIP;
+
+    bool _printDebug = false;
+    Stream *_debugSerial;
 
     void (*_socketReadCallback)(int, String);
     void (*_socketCloseCallback)(int);
