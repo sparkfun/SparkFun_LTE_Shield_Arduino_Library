@@ -35,7 +35,7 @@ SoftwareSerial lteSerial(8, 9);
 LTE_Shield lte;
 
 // Set the cell phone number to be texted
-String DESTINATION_NUMBER = "11234567890";
+String DESTINATION_NUMBER = "11234567890"; //This is the full cell # including country code
 
 void setup() {
   Serial.begin(9600);
