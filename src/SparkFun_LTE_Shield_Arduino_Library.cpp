@@ -100,7 +100,7 @@ char lteShieldRXBuffer[128];
 
 static boolean parseGPRMCString(char *rmcString, PositionData *pos, ClockData *clk, SpeedData *spd);
 
-LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
+LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin, uint8_t maxInitDepth)
 {
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
     _softSerial = NULL;
@@ -109,6 +109,7 @@ LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
     _baud = 0;
     _resetPin = resetPin;
     _powerPin = powerPin;
+    _maxInitDepth = maxInitDepth;
     _socketReadCallback = NULL;
     _socketCloseCallback = NULL;
     _lastRemoteIP = {0, 0, 0, 0};
@@ -1564,6 +1565,14 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
 {
     LTE_Shield_error_t err;
 
+    //If we have recursively called init too many times, bail
+    _currentInitDepth++;
+    if (_currentInitDepth == _maxInitDepth)
+    {
+        debugln(F("Module failed to init. Exiting."));
+        return (LTE_SHIELD_ERROR_NO_RESPONSE);
+    }
+
     debugln(F("Begin module init."));
 
     beginSerial(baud); // Begin serial
@@ -1580,7 +1589,6 @@ LTE_Shield_error_t LTE_Shield::init(unsigned long baud,
     {
         debugln(F("Power cycling module."));
         powerOn();
-        delay(1000);
         if (at() != LTE_SHIELD_ERROR_SUCCESS)
         {
             return init(baud, LTE_SHIELD_INIT_AUTOBAUD);

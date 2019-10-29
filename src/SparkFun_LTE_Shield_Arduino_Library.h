@@ -165,7 +165,7 @@ class LTE_Shield : public Print
 {
 public:
     //  Constructor
-    LTE_Shield(uint8_t powerPin = LTE_SHIELD_POWER_PIN, uint8_t resetPin = LTE_SHIELD_RESET_PIN);
+    LTE_Shield(uint8_t powerPin = LTE_SHIELD_POWER_PIN, uint8_t resetPin = LTE_SHIELD_RESET_PIN, uint8_t maxInitDepth = 9);
 
     // Begin -- initialize BT module and ensure it's connected
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
@@ -338,6 +338,8 @@ private:
 
     bool _printDebug = false;
     Stream *_debugSerial;
+    uint8_t _maxInitDepth;
+    uint8_t _currentInitDepth = 0;
 
     void (*_socketReadCallback)(int, String);
     void (*_socketCloseCallback)(int);
