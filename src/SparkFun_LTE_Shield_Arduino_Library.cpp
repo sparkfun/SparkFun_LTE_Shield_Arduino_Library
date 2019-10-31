@@ -1794,7 +1794,8 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
         if (hwAvailable())
         {
             char c = readChar();
-            //Serial.write(c);
+            debug((String)c);
+
             if (responseDest != NULL)
             {
                 responseDest[destIndex++] = c;
