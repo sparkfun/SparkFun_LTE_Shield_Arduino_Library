@@ -64,8 +64,10 @@ const char LTE_SHIELD_CREATE_SOCKET[] = "+USOCR";  // Create a new socket
 const char LTE_SHIELD_CLOSE_SOCKET[] = "+USOCL";   // Close a socket
 const char LTE_SHIELD_CONNECT_SOCKET[] = "+USOCO"; // Connect to server on socket
 const char LTE_SHIELD_WRITE_SOCKET[] = "+USOWR";   // Write data to a socket
+const char LTE_SHIELD_WRITE_UDP_SOCKET[] = "+USOST"; // Write data to a UDP socket
 const char LTE_SHIELD_READ_SOCKET[] = "+USORD";    // Read from a socket
 const char LTE_SHIELD_LISTEN_SOCKET[] = "+USOLI";  // Listen for connection on socket
+const char LTE_SHIELD_GET_ERROR[] = "+USOER"; // Get last socket error.
 // ### SMS
 const char LTE_SHIELD_MESSAGE_FORMAT[] = "+CMGF"; // Set SMS message format
 const char LTE_SHIELD_SEND_TEXT[] = "+CMGS";      // Send SMS message
@@ -75,6 +77,7 @@ const char LTE_SHIELD_GPS_REQUEST_LOCATION[] = "+ULOC";
 const char LTE_SHIELD_GPS_GPRMC[] = "+UGRMC";
 
 const char LTE_SHIELD_RESPONSE_OK[] = "OK\r\n";
+const char LTE_SHIELD_RESPONSE_ERROR[] = "ERROR\r\n";
 
 // CTRL+Z and ESC ASCII codes for SMS message sends
 const char ASCII_CTRL_Z = 0x1A;
@@ -96,7 +99,10 @@ const unsigned long LTE_SHIELD_SUPPORTED_BAUD[NUM_SUPPORTED_BAUD] =
         230400};
 #define LTE_SHIELD_DEFAULT_BAUD_RATE 115200
 
-char lteShieldRXBuffer[128];
+const int RXBuffSize = 2056;
+const int rxWindowUS = 1000;
+char lteShieldRXBuffer[RXBuffSize];
+char lteShieldResponseBacklog[RXBuffSize];
 
 static boolean parseGPRMCString(char *rmcString, PositionData *pos, ClockData *clk, SpeedData *spd);
 
@@ -114,7 +120,9 @@ LTE_Shield::LTE_Shield(uint8_t powerPin, uint8_t resetPin)
     _lastRemoteIP = {0, 0, 0, 0};
     _lastLocalIP = {0, 0, 0, 0};
 
-    memset(lteShieldRXBuffer, 0, 128);
+	memset(lteShieldRXBuffer, 0, RXBuffSize);
+	memset(lteShieldResponseBacklog, 0, RXBuffSize);
+	
 }
 
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
@@ -135,7 +143,7 @@ boolean LTE_Shield::begin(SoftwareSerial &softSerial, unsigned long baud)
 
 boolean LTE_Shield::begin(HardwareSerial &hardSerial, unsigned long baud)
 {
-    LTE_Shield_error_t err;
+	LTE_Shield_error_t err;
 
     _hardSerial = &hardSerial;
 
@@ -147,13 +155,105 @@ boolean LTE_Shield::begin(HardwareSerial &hardSerial, unsigned long baud)
     return false;
 }
 
+boolean LTE_Shield::bufferedPoll(void){
+	int avail = 0;
+    char c = 0;
+    bool handled = false;
+	unsigned long timeIn = micros();
+	memset(lteShieldRXBuffer, 0, RXBuffSize);
+	int backlogLen = strlen(lteShieldResponseBacklog);
+	char *event;
+	
+	if (backlogLen > 0){//The backlog also logs reads from other tasks like transmitting.
+		//Serial.println("Backlog found!");
+		memcpy(lteShieldRXBuffer+avail, lteShieldResponseBacklog, backlogLen);
+		avail+=backlogLen;
+		memset(lteShieldResponseBacklog, 0, RXBuffSize);
+	}
+	
+	if (hwAvailable() || backlogLen > 0){//If either new data is available, or backlog had data.
+		while (micros() - timeIn < rxWindowUS && avail < RXBuffSize){
+			if (hwAvailable()){
+			    c = readChar();
+                lteShieldRXBuffer[avail++] = c;
+				timeIn = micros();
+            }
+		}
+		event = strtok(lteShieldRXBuffer, "\r\n");
+		while (event != NULL){
+			//Serial.print("Event:");
+			//Serial.print(event);
+			handled = processReadEvent(event);
+			backlogLen = strlen(lteShieldResponseBacklog);
+			if (backlogLen > 0 && (avail+backlogLen) < RXBuffSize){
+				//Serial.println("Backlog added!");
+				memcpy(lteShieldRXBuffer+avail, lteShieldResponseBacklog, backlogLen);
+				avail+=backlogLen;
+				memset(lteShieldResponseBacklog, 0, RXBuffSize);//Clear out backlog buffer.
+			}
+			event = strtok(NULL, "\r\n");
+			//Serial.println("!");//Just to denote end of processing event.
+        }
+    }
+	free(event);
+    return handled;
+}
+
+boolean LTE_Shield::processReadEvent(char* event){
+	{
+		int socket, length;
+		int ret = sscanf(event, "+UUSORD: %d,%d", &socket, &length);
+		if (ret == 2)
+		{
+			//Serial.println("PARSED SOCKET READ");
+			parseSocketReadIndication(socket, length);
+			return true;
+		}
+	}
+	{
+		int socket, listenSocket;
+		unsigned int port, listenPort;
+		IPAddress remoteIP, localIP;
+		int ret = sscanf(event,
+				   "+UUSOLI: %d,\"%d.%d.%d.%d\",%u,%d,\"%d.%d.%d.%d\",%u",
+				   &socket,
+				   &remoteIP[0], &remoteIP[1], &remoteIP[2], &remoteIP[3],
+				   &port, &listenSocket,
+				   &localIP[0], &localIP[1], &localIP[2], &localIP[3],
+				   &listenPort);
+		if (ret > 4)
+		{
+			//Serial.println("PARSED SOCKET LISTEN");
+			parseSocketListenIndication(localIP, remoteIP);
+			return true;
+		}
+	}
+	{
+		int socket;
+		int ret = sscanf(event, "+UUSOCL: %d", &socket);
+		if (ret == 1)
+		{
+			//Serial.println("PARSED SOCKET CLOSE");
+			if ((socket >= 0) && (socket <= 6))
+			{
+				if (_socketCloseCallback != NULL)
+				{
+					_socketCloseCallback(socket);
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
 boolean LTE_Shield::poll(void)
 {
     int avail = 0;
     char c = 0;
     bool handled = false;
 
-    memset(lteShieldRXBuffer, 0, 128);
+    memset(lteShieldRXBuffer, 0, 2056);
 
     if (hwAvailable())
     {
@@ -165,7 +265,7 @@ boolean LTE_Shield::poll(void)
                 lteShieldRXBuffer[avail++] = c;
             }
         }
-        {
+		{
             int socket, length;
             if (sscanf(lteShieldRXBuffer, "+UUSORD: %d,%d", &socket, &length) == 2)
             {
@@ -198,7 +298,7 @@ boolean LTE_Shield::poll(void)
             {
                 if ((socket >= 0) && (socket <= 6))
                 {
-                    if (_socketCloseCallback != NULL)
+					if (_socketCloseCallback != NULL)
                     {
                         _socketCloseCallback(socket);
                     }
@@ -245,7 +345,7 @@ boolean LTE_Shield::poll(void)
 
         if ((handled == false) && (strlen(lteShieldRXBuffer) > 2))
         {
-            //Serial.println("Poll: " + String(lteShieldRXBuffer));
+            Serial.println("Poll: " + String(lteShieldRXBuffer));
         }
         else
         {
@@ -1157,20 +1257,27 @@ int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int l
     if (command == NULL)
         return -1;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_CREATE_SOCKET, protocol, localPort);
+	
+    response = lte_calloc_char(128);
 
-    response = lte_calloc_char(24);
-    if (response == NULL)
+	if (response == NULL)
     {
-        free(command);
+        Serial.println("Socket Open Failure: NULL response.");
+		free(command);
         return -1;
     }
-
+	
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
                                   response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     if (err != LTE_SHIELD_ERROR_SUCCESS)
     {
-        free(command);
+        Serial.print("Socket Open Failure: ");
+		Serial.println(err);
+		Serial.println("Response: {");
+		Serial.println(response);
+		Serial.println("}");
+		free(command);
         free(response);
         return -1;
     }
@@ -1178,7 +1285,10 @@ int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int l
     responseStart = strstr(response, "+USOCR");
     if (responseStart == NULL)
     {
-        free(command);
+        Serial.print("Socket Open Failure: {");
+		Serial.print(response);
+		Serial.println("}");
+		free(command);
         free(response);
         return -1;
     }
@@ -1191,19 +1301,27 @@ int LTE_Shield::socketOpen(lte_shield_socket_protocol_t protocol, unsigned int l
     return sockId;
 }
 
-LTE_Shield_error_t LTE_Shield::socketClose(int socket, int timeout)
+LTE_Shield_error_t LTE_Shield::socketClose(int socket, int timeout, boolean debug)
 {
     LTE_Shield_error_t err;
     char *command;
+	char *response;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_CLOSE_SOCKET) + 10);
-    if (command == NULL)
+    response = lte_calloc_char(128);
+	if (command == NULL)
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d", LTE_SHIELD_CLOSE_SOCKET, socket);
 
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL, timeout);
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response, timeout);
 
+	if (err != LTE_SHIELD_ERROR_SUCCESS && debug == true){
+		Serial.print("Socket Close Error Code: ");
+		Serial.println(socketGetLastError());
+	}
+	
     free(command);
+	free(response);
 
     return err;
 }
@@ -1229,27 +1347,71 @@ LTE_Shield_error_t LTE_Shield::socketConnect(int socket, const char *address,
 LTE_Shield_error_t LTE_Shield::socketWrite(int socket, const char *str)
 {
     char *command;
+	char *response;
     LTE_Shield_error_t err;
+	unsigned long writeDelay;
 
+	response = lte_calloc_char(128);
     command = lte_calloc_char(strlen(LTE_SHIELD_WRITE_SOCKET) + 8);
+	
     if (command == NULL)
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_WRITE_SOCKET, socket, strlen(str));
 
-    err = sendCommandWithResponse(command, "@", NULL,
+    err = sendCommandWithResponse(command, "@", response,//NULL,
                                   LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-
-    hwPrint(str);
-
-    err = waitForResponse(LTE_SHIELD_RESPONSE_OK, LTE_SHIELD_SOCKET_WRITE_TIMEOUT);
-
+	
+	if (err == LTE_SHIELD_ERROR_SUCCESS) {
+		writeDelay = millis();
+		while (millis() - writeDelay < 50);//uBlox specification says to wait 50ms after receiving "@" to write data. 
+		hwPrint(str);
+		err = waitForResponse(LTE_SHIELD_RESPONSE_OK, LTE_SHIELD_RESPONSE_ERROR, LTE_SHIELD_SOCKET_WRITE_TIMEOUT);
+	} else {
+		Serial.print("WriteCmd Err Response: ");
+		Serial.print(err);
+		Serial.print(" => {");
+		Serial.print(response);
+		Serial.println("}");
+	}
+	
     free(command);
+	free(response);
     return err;
 }
 
 LTE_Shield_error_t LTE_Shield::socketWrite(int socket, String str)
 {
     return socketWrite(socket, str.c_str());
+}
+
+LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, const char *address, int port, const char *str){
+	char *command;
+	char *response;
+	LTE_Shield_error_t err;
+	int dataLen = strlen(str);
+	
+	response = lte_calloc_char(128);
+	command = lte_calloc_char(64);
+	
+	sprintf(command, "%s=%d,\"%s\",%d,%d", LTE_SHIELD_WRITE_UDP_SOCKET,
+										socket, address, port, dataLen);
+	err = sendCommandWithResponse(command, "@", response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+									
+	if (err == LTE_SHIELD_ERROR_SUCCESS){
+		hwPrint(str);
+		err = waitForResponse(LTE_SHIELD_RESPONSE_OK, LTE_SHIELD_RESPONSE_ERROR, LTE_SHIELD_SOCKET_WRITE_TIMEOUT);
+	} else {
+		Serial.print("UDP Write Error: ");
+		Serial.println(socketGetLastError());
+	}
+	
+	free(command);
+	free(response);
+	return err;
+}
+
+LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, String address, int port, String str){
+	return socketWriteUDP(socket, address.c_str(), port, str.c_str());
 }
 
 LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest)
@@ -1265,7 +1427,7 @@ LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_READ_SOCKET, socket, length);
 
-    response = lte_calloc_char(length + strlen(LTE_SHIELD_READ_SOCKET) + 24);
+    response = lte_calloc_char(length + strlen(LTE_SHIELD_READ_SOCKET) + 128);
     if (response == NULL)
     {
         free(command);
@@ -1274,8 +1436,8 @@ LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
                                   LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
-
-    if (err == LTE_SHIELD_ERROR_SUCCESS)
+	
+	if (err == LTE_SHIELD_ERROR_SUCCESS)
     {
         // Find the first double-quote:
         strBegin = strchr(response, '\"');
@@ -1293,10 +1455,10 @@ LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest
             readIndex += 1;
         }
     }
-
+	
     free(command);
     free(response);
-
+	
     return err;
 }
 
@@ -1309,12 +1471,37 @@ LTE_Shield_error_t LTE_Shield::socketListen(int socket, unsigned int port)
     if (command == NULL)
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     sprintf(command, "%s=%d,%d", LTE_SHIELD_LISTEN_SOCKET, socket, port);
-
-    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
+	
+	err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
                                   LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
     return err;
+}
+
+//Issues command to get last socket error, then prints to serial. Also updates rx/backlog buffers.
+int LTE_Shield::socketGetLastError(){
+	LTE_Shield_error_t err;
+	char *command;
+	char *response;
+	int errorCode = -1;
+	
+	command=lte_calloc_char(64);
+	response=lte_calloc_char(128);
+	
+	sprintf(command, "%s", LTE_SHIELD_GET_ERROR);
+	
+	err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+									LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+	
+	if (err == LTE_SHIELD_ERROR_SUCCESS){
+		sscanf(response, "+USOER: %d", &errorCode);
+	}
+	
+	free(command);
+	free(response);
+	
+	return errorCode;
 }
 
 IPAddress LTE_Shield::lastRemoteIP(void)
@@ -1725,77 +1912,89 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t *mno)
     return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
 }*/
 
-LTE_Shield_error_t LTE_Shield::waitForResponse(const char *expectedResponse, uint16_t timeout)
+LTE_Shield_error_t LTE_Shield::waitForResponse(const char *expectedResponse, const char *expectedError, uint16_t timeout)
 {
     unsigned long timeIn;
     boolean found = false;
-    int index = 0;
-
+    int responseIndex = 0, errorIndex = 0;
+	int backlogIndex = strlen(lteShieldResponseBacklog);
+	
     timeIn = millis();
-
-    while ((!found) && (timeIn + timeout > millis()))
-    {
-        if (hwAvailable())
-        {
+	
+	while ((!found) && (timeIn + timeout > millis())){
+        if (hwAvailable()){
             char c = readChar();
-            if (c == expectedResponse[index])
-            {
-                if (++index == strlen(expectedResponse))
-                {
+            if (c == expectedResponse[responseIndex]){
+                if (++responseIndex == strlen(expectedResponse)){
                     found = true;
                 }
+            } else {
+                responseIndex = 0;
             }
-            else
-            {
-                index = 0;
-            }
+			if (c == expectedError[errorIndex]){
+				if (++errorIndex == strlen(expectedError)){
+					found = true;
+				}
+			} else {
+				errorIndex = 0;
+			}
+			//This is a global array that holds the backlog of any events 
+			//that came in while waiting for response. To be processed later within bufferedPoll().
+			lteShieldResponseBacklog[backlogIndex++] = c;
         }
     }
-    return found ? LTE_SHIELD_ERROR_SUCCESS : LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+	
+	pruneBacklog();
+	
+	if (found == true){
+		if (errorIndex > 0){
+			return LTE_SHEILD_ERROR_ERROR;
+		} else if (responseIndex > 0){
+			return LTE_SHIELD_ERROR_SUCCESS;
+		}
+	}
+	return LTE_SHIELD_ERROR_NO_RESPONSE;
+	
 }
 
 LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     const char *command, const char *expectedResponse, char *responseDest,
     unsigned long commandTimeout, boolean at)
 {
-    unsigned long timeIn;
     boolean found = false;
     int index = 0;
     int destIndex = 0;
     unsigned int charsRead = 0;
 
-    //Serial.print("Command: ");
+    //Serial.print("Send Command: ");
     //Serial.println(String(command));
-    sendCommand(command, at);
-    //Serial.print("Response: ");
-    timeIn = millis();
-    while ((!found) && (timeIn + commandTimeout > millis()))
-    {
-        if (hwAvailable())
-        {
-            char c = readChar();
-            //Serial.write(c);
-            if (responseDest != NULL)
-            {
-                responseDest[destIndex++] = c;
-            }
-            charsRead++;
-            if (c == expectedResponse[index])
-            {
-                if (++index == strlen(expectedResponse))
-                {
-                    found = true;
-                }
-            }
-            else
-            {
-                index = 0;
-            }
-        }
-    }
-    //Serial.println();
-
-    if (found)
+    
+	int backlogIndex = sendCommand(command, at);//Sending command needs to dump data to backlog buffer as well.
+	unsigned long timeIn = millis();
+    
+	while ((!found) && (timeIn + commandTimeout > millis())){
+		if (hwAvailable()){
+			char c = readChar();
+			if (responseDest != NULL){
+				responseDest[destIndex++] = c;
+			}
+			charsRead++;
+			if (c == expectedResponse[index]){
+				if (++index == strlen(expectedResponse)){
+					found = true;
+				}
+			} else {
+				index = 0;
+			}
+			//This is a global array that holds the backlog of any events 
+			//that came in while waiting for response. To be processed later within bufferedPoll().
+			lteShieldResponseBacklog[backlogIndex++] = c;
+		}
+	}
+	
+	pruneBacklog();
+	
+	if (found)
     {
         return LTE_SHIELD_ERROR_SUCCESS;
     }
@@ -1809,10 +2008,21 @@ LTE_Shield_error_t LTE_Shield::sendCommandWithResponse(
     }
 }
 
-boolean LTE_Shield::sendCommand(const char *command, boolean at)
+int LTE_Shield::sendCommand(const char *command, boolean at)
 {
-    readAvailable(NULL); // Clear out receive buffer before sending a new command
-
+    int backlogIndex = strlen(lteShieldResponseBacklog);
+	
+	unsigned long timeIn = micros();
+	if (hwAvailable()){
+		while (micros()-timeIn < rxWindowUS && backlogIndex < RXBuffSize){//May need to escape on newline?
+			if (hwAvailable()){
+				char c = readChar();
+				lteShieldResponseBacklog[backlogIndex++] = c;
+				timeIn = micros();
+			}
+		}
+	}
+	
     if (at)
     {
         hwPrint(LTE_SHIELD_COMMAND_AT);
@@ -1824,7 +2034,7 @@ boolean LTE_Shield::sendCommand(const char *command, boolean at)
         hwPrint(command);
     }
 
-    return true;
+    return backlogIndex;
 }
 
 LTE_Shield_error_t LTE_Shield::parseSocketReadIndication(int socket, int length)
@@ -1898,7 +2108,7 @@ size_t LTE_Shield::hwPrint(const char *s)
 
 size_t LTE_Shield::hwWrite(const char c)
 {
-    if (_hardSerial != NULL)
+	if (_hardSerial != NULL)
     {
         return _hardSerial->write(c);
     }
@@ -1930,6 +2140,7 @@ int LTE_Shield::readAvailable(char *inString)
         {
             inString[len] = 0;
         }
+		Serial.println(inString);
     }
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
     if (_softSerial != NULL)
@@ -2054,6 +2265,33 @@ LTE_Shield_error_t LTE_Shield::autobaud(unsigned long desiredBaud)
 char *LTE_Shield::lte_calloc_char(size_t num)
 {
     return (char *)calloc(num, sizeof(char));
+}
+
+//This prunes the backlog of non-actionable events. If new actionable events are added, you must modify the if statement.
+void LTE_Shield::pruneBacklog(){
+	char* event;
+	int pruneLen = 0;
+	char pruneBuffer[RXBuffSize];
+	memset(pruneBuffer, 0, RXBuffSize);
+	
+	event = strtok(lteShieldResponseBacklog, "\r\n");
+	while (event != NULL){//If event actionable, add to pruneBuffer.
+		if (strstr(event, "+UUSORD:") != NULL || strstr(event, "+UUSOLI:") != NULL || strstr(event, "+UUSOCL:") != NULL){
+			strcat(pruneBuffer, event);
+			strcat(pruneBuffer, "\r\n");//strtok blows away delimiter, but we want that for later.
+		}
+		event = strtok(NULL, "\r\n");
+	}
+	memset(lteShieldResponseBacklog, 0, RXBuffSize);//Clear out backlog buffer.
+	strcpy(lteShieldResponseBacklog, pruneBuffer);
+	
+	/*if (strlen(lteShieldResponseBacklog) > 0){//Handy for debugging new parsing.
+		Serial.println("PRUNING SAVED: ");
+		Serial.println(lteShieldResponseBacklog);
+		Serial.println("fin.");
+	}*/
+	
+	free(event);
 }
 
 // GPS Helper Functions:
