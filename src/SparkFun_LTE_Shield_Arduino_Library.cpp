@@ -66,6 +66,7 @@ const char LTE_SHIELD_CONNECT_SOCKET[] = "+USOCO"; // Connect to server on socke
 const char LTE_SHIELD_WRITE_SOCKET[] = "+USOWR";   // Write data to a socket
 const char LTE_SHIELD_WRITE_UDP_SOCKET[] = "+USOST"; // Write data to a UDP socket
 const char LTE_SHIELD_READ_SOCKET[] = "+USORD";    // Read from a socket
+const char LTE_SHIELD_READ_UDP_SOCKET[] = "+USORF"; // Read UDP data from a socket.
 const char LTE_SHIELD_LISTEN_SOCKET[] = "+USOLI";  // Listen for connection on socket
 const char LTE_SHIELD_GET_ERROR[] = "+USOER"; // Get last socket error.
 // ### SMS
@@ -207,6 +208,15 @@ boolean LTE_Shield::processReadEvent(char* event){
 		{
 			//Serial.println("PARSED SOCKET READ");
 			parseSocketReadIndication(socket, length);
+			return true;
+		}
+	}
+	{
+		int socket, length;
+		int ret = sscanf(event, "+UUSORF: %d,%d", &socket, &length);
+		if (ret == 2){
+			Serial.println("PARSED UDP READ");
+			parseSocketReadIndicationUDP(socket, length);
 			return true;
 		}
 	}
@@ -1384,11 +1394,11 @@ LTE_Shield_error_t LTE_Shield::socketWrite(int socket, String str)
     return socketWrite(socket, str.c_str());
 }
 
-LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, const char *address, int port, const char *str){
+LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, const char *address, int port, const char *str, int len){
 	char *command;
 	char *response;
 	LTE_Shield_error_t err;
-	int dataLen = strlen(str);
+	int dataLen = len == -1 ? strlen(str) : len;
 	
 	response = lte_calloc_char(128);
 	command = lte_calloc_char(64);
@@ -1398,7 +1408,11 @@ LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, const char *address, i
 	err = sendCommandWithResponse(command, "@", response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 									
 	if (err == LTE_SHIELD_ERROR_SUCCESS){
-		hwPrint(str);
+		if (len == -1){//If binary data we need to send a length.
+			hwPrint(str);
+		} else {
+			hwWriteData(str, len);
+		}
 		err = waitForResponse(LTE_SHIELD_RESPONSE_OK, LTE_SHIELD_RESPONSE_ERROR, LTE_SHIELD_SOCKET_WRITE_TIMEOUT);
 	} else {
 		Serial.print("UDP Write Error: ");
@@ -1410,8 +1424,8 @@ LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, const char *address, i
 	return err;
 }
 
-LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, String address, int port, String str){
-	return socketWriteUDP(socket, address.c_str(), port, str.c_str());
+LTE_Shield_error_t LTE_Shield::socketWriteUDP(int socket, String address, int port, String str, int len){
+	return socketWriteUDP(socket, address.c_str(), port, str.c_str(), len);
 }
 
 LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest)
@@ -1442,6 +1456,59 @@ LTE_Shield_error_t LTE_Shield::socketRead(int socket, int length, char *readDest
         // Find the first double-quote:
         strBegin = strchr(response, '\"');
 
+        if (strBegin == NULL)
+        {
+            free(command);
+            free(response);
+            return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+        }
+
+        while ((readIndex < length) && (readIndex < strlen(strBegin)))
+        {
+            readDest[readIndex] = strBegin[1 + readIndex];
+            readIndex += 1;
+        }
+    }
+	
+    free(command);
+    free(response);
+	
+    return err;
+}
+
+LTE_Shield_error_t LTE_Shield::socketReadUDP(int socket, int length, char *readDest){
+    char *command;
+    char *response;
+    char *strBegin;
+    int readIndex = 0;
+    LTE_Shield_error_t err;
+
+    command = lte_calloc_char(strlen(LTE_SHIELD_READ_UDP_SOCKET) + 16);
+    if (command == NULL)
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    sprintf(command, "%s=%d,%d", LTE_SHIELD_READ_UDP_SOCKET, socket, length);
+
+    response = lte_calloc_char(length + strlen(LTE_SHIELD_READ_UDP_SOCKET) + 128);
+    if (response == NULL)
+    {
+        free(command);
+        return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+    }
+
+    err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, response,
+                                  LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+	
+	if (err == LTE_SHIELD_ERROR_SUCCESS)
+    {
+        // Find the third double-quote. This needs to be improved to collect other data.
+		Serial.print("UDP READ: {");
+		Serial.print(response);
+		Serial.println("}");
+		
+        strBegin = strchr(response, '\"');
+		strBegin = strchr(strBegin+1, '\"');
+		strBegin = strchr(strBegin+1, '\"');
+		
         if (strBegin == NULL)
         {
             free(command);
@@ -2064,6 +2131,33 @@ LTE_Shield_error_t LTE_Shield::parseSocketReadIndication(int socket, int length)
     return LTE_SHIELD_ERROR_SUCCESS;
 }
 
+LTE_Shield_error_t LTE_Shield::parseSocketReadIndicationUDP(int socket, int length){
+	LTE_Shield_error_t err;
+	char* readDest;
+	
+	if ((socket < 0) || (length < 0))
+    {
+        return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
+    }
+	
+	readDest = lte_calloc_char(length + 1);
+	if (readDest == NULL){
+		return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
+	}
+	
+	err = socketReadUDP(socket, length, readDest);
+	if (err != LTE_SHIELD_ERROR_SUCCESS){
+		return err;
+	}
+	
+	if (_socketReadCallback != NULL){
+		_socketReadCallback(socket, String(readDest));
+	}
+	
+	free(readDest);
+	return LTE_SHIELD_ERROR_SUCCESS;
+}
+
 LTE_Shield_error_t LTE_Shield::parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP)
 {
     _lastLocalIP = localIP;
@@ -2103,6 +2197,18 @@ size_t LTE_Shield::hwPrint(const char *s)
     }
 #endif
 
+    return (size_t)0;
+}
+
+size_t LTE_Shield::hwWriteData(const char* buff, int len){
+	if (_hardSerial != NULL){
+		return _hardSerial->write(buff, len);
+	}
+#ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
+    else if (_softSerial != NULL){
+        return _softSerial->write(buff, len);
+    }
+#endif
     return (size_t)0;
 }
 
@@ -2276,7 +2382,10 @@ void LTE_Shield::pruneBacklog(){
 	
 	event = strtok(lteShieldResponseBacklog, "\r\n");
 	while (event != NULL){//If event actionable, add to pruneBuffer.
-		if (strstr(event, "+UUSORD:") != NULL || strstr(event, "+UUSOLI:") != NULL || strstr(event, "+UUSOCL:") != NULL){
+		if (strstr(event, "+UUSORD:") != NULL 
+			|| strstr(event, "+UUSOLI:") != NULL 
+			|| strstr(event, "+UUSOCL:") != NULL
+			|| strstr(event, "+UUSORF:") != NULL){
 			strcat(pruneBuffer, event);
 			strcat(pruneBuffer, "\r\n");//strtok blows away delimiter, but we want that for later.
 		}

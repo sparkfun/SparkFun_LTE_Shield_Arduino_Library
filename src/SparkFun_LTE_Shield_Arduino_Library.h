@@ -286,9 +286,10 @@ public:
     LTE_Shield_error_t socketConnect(int socket, const char *address, unsigned int port);
     LTE_Shield_error_t socketWrite(int socket, const char *str);
     LTE_Shield_error_t socketWrite(int socket, String str);
-	LTE_Shield_error_t socketWriteUDP(int socket, const char *address, int port, const char *str);
-	LTE_Shield_error_t socketWriteUDP(int socket, String address, int port, String str);
+	LTE_Shield_error_t socketWriteUDP(int socket, const char *address, int port, const char *str, int len = -1);
+	LTE_Shield_error_t socketWriteUDP(int socket, String address, int port, String str, int len = -1);
     LTE_Shield_error_t socketRead(int socket, int length, char *readDest);
+	LTE_Shield_error_t socketReadUDP(int socket, int length, char *readDest);
     LTE_Shield_error_t socketListen(int socket, unsigned int port);
     int socketGetLastError();
 	IPAddress lastRemoteIP(void);
@@ -378,11 +379,13 @@ private:
     int sendCommand(const char *command, boolean at);
 
     LTE_Shield_error_t parseSocketReadIndication(int socket, int length);
-    LTE_Shield_error_t parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP);
+    LTE_Shield_error_t parseSocketReadIndicationUDP(int socket, int length);
+	LTE_Shield_error_t parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP);
     LTE_Shield_error_t parseSocketCloseIndication(String *closeIndication);
 
     // UART Functions
     size_t hwPrint(const char *s);
+	size_t hwWriteData(const char* buff, int len);
     size_t hwWrite(const char c);
     int readAvailable(char *inString);
     char readChar(void);
