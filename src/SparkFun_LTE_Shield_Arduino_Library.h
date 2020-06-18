@@ -48,6 +48,10 @@
 #define LTE_SHIELD_SOFTWARE_SERIAL_ENABLED // Enable software serial
 #endif
 
+#ifdef ARDUINO_ARCH_STM32                  // STM32 based boards (Disco, Nucleo, etc)
+#define LTE_SHIELD_SOFTWARE_SERIAL_ENABLED // Enable software serial
+#endif
+
 #ifdef LTE_SHIELD_SOFTWARE_SERIAL_ENABLED
 #include <SoftwareSerial.h>
 #endif
