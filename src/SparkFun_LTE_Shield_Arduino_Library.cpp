@@ -5,7 +5,7 @@
   Do you like this library? Help support SparkFun. Buy a board!
   https://www.sparkfun.com/products/14997
   Written by Jim Lindblom @ SparkFun Electronics, September 5, 2018
-  
+
   This Arduino library provides mechanisms to initialize and use
   the SARA-R4 module over either a SoftwareSerial or hardware serial port.
 
@@ -461,7 +461,11 @@ String LTE_Shield::clock(void)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
                                   response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        free(command);
+        free(response);
         return "";
+    }
 
     // Response format: \r\n+CCLK: "YY/MM/DD,HH:MM:SS-TZ"\r\n\r\nOK\r\n
     clockBegin = strchr(response, '\"'); // Find first quote
@@ -529,6 +533,8 @@ LTE_Shield_error_t LTE_Shield::clock(uint8_t *y, uint8_t *mo, uint8_t *d,
         }
     }
 
+    free(command);
+    free(response);
     return err;
 }
 
@@ -544,6 +550,7 @@ LTE_Shield_error_t LTE_Shield::autoTimeZone(boolean enable)
 
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
                                   NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
+    free(command);
     return err;
 }
 
@@ -569,7 +576,11 @@ int8_t LTE_Shield::rssi(void)
     err = sendCommandWithResponse(command,
                                   LTE_SHIELD_RESPONSE_OK, response, 10000, AT_COMMAND);
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        free(command);
+        free(response);
         return -1;
+    }
 
     if (sscanf(response, "\r\n+CSQ: %d,%*d", &rssi) != 1)
     {
@@ -603,7 +614,11 @@ LTE_Shield_registration_status_t LTE_Shield::registration(void)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
                                   response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT, AT_COMMAND);
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        free(command);
+        free(response);
         return LTE_SHIELD_REGISTRATION_INVALID;
+    }
 
     if (sscanf(response, "\r\n+CREG: %*d,%d", &status) != 1)
     {
@@ -676,6 +691,7 @@ LTE_Shield_error_t LTE_Shield::setAPN(String apn, uint8_t cid, LTE_Shield_pdp_ty
     switch (pdpType)
     {
     case PDP_TYPE_INVALID:
+        free(command);
         return LTE_SHIELD_ERROR_UNEXPECTED_PARAM;
         break;
     case PDP_TYPE_IP:
@@ -903,6 +919,7 @@ LTE_Shield_error_t LTE_Shield::registerOperator(struct operator_stats oper)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
                                   180000);
 
+    free(command);
     return err;
 }
 
@@ -981,6 +998,7 @@ LTE_Shield_error_t LTE_Shield::deregisterOperator(void)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK, NULL,
                                   LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
+    free(command);
     return err;
 }
 
@@ -1038,13 +1056,14 @@ LTE_Shield_error_t LTE_Shield::sendSMS(String number, String message)
 
         err = sendCommandWithResponse(messageCStr, LTE_SHIELD_RESPONSE_OK,
                                       NULL, 180000, NOT_AT_COMMAND);
+
+        free(messageCStr);
     }
     else
     {
+        free(numberCStr);
         err = LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
-
-    free(messageCStr);
 
     return err;
 }
@@ -1135,12 +1154,13 @@ LTE_Shield::LTE_Shield_gpio_mode_t LTE_Shield::getGpioMode(LTE_Shield_gpio_t gpi
 
     sprintf(gpioChar, "%d", gpio);          // Convert GPIO to char array
     gpioStart = strstr(response, gpioChar); // Find first occurence of GPIO in response
-    if (gpioStart == NULL)
-        return GPIO_MODE_INVALID; // If not found return invalid
-    sscanf(gpioStart, "%*d,%d\r\n", &gpioMode);
 
     free(command);
     free(response);
+
+    if (gpioStart == NULL)
+        return GPIO_MODE_INVALID; // If not found return invalid
+    sscanf(gpioStart, "%*d,%d\r\n", &gpioMode);
 
     return (LTE_Shield_gpio_mode_t)gpioMode;
 }
@@ -1639,7 +1659,6 @@ LTE_Shield_error_t LTE_Shield::setMno(mobile_network_operator_t mno)
 {
     LTE_Shield_error_t err;
     char *command;
-    char *response;
 
     command = lte_calloc_char(strlen(LTE_SHIELD_COMMAND_MNO) + 3);
     if (command == NULL)
@@ -1650,7 +1669,6 @@ LTE_Shield_error_t LTE_Shield::setMno(mobile_network_operator_t mno)
                                   NULL, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
 
     free(command);
-    free(response);
 
     return err;
 }
@@ -1678,12 +1696,18 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t *mno)
     err = sendCommandWithResponse(command, LTE_SHIELD_RESPONSE_OK,
                                   response, LTE_SHIELD_STANDARD_RESPONSE_TIMEOUT);
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        free(command);
+        free(response);
         return err;
+    }
 
     i = strcspn(response, mno_keys); // Find first occurence of MNO key
     if (i == strlen(response))
     {
         *mno = MNO_INVALID;
+        free(command);
+        free(response);
         return LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE;
     }
     *mno = (mobile_network_operator_t)(response[i] - 0x30); // Convert to integer
@@ -1694,7 +1718,7 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t *mno)
     return err;
 }
 
-/*LTE_Shield_error_t LTE_Shield::sendCommandWithResponseAndTimeout(const char * command, 
+/*LTE_Shield_error_t LTE_Shield::sendCommandWithResponseAndTimeout(const char * command,
     char * expectedResponse, uint16_t commandTimeout, boolean at)
 {
     unsigned long timeIn = millis();
@@ -1716,7 +1740,7 @@ LTE_Shield_error_t LTE_Shield::getMno(mobile_network_operator_t *mno)
         return LTE_SHIELD_ERROR_OUT_OF_MEMORY;
     }
     readAvailable(response);
-    
+
     // Check for expected response
     if (strcmp(response, expectedResponse) == 0)
     {
@@ -1843,7 +1867,10 @@ LTE_Shield_error_t LTE_Shield::parseSocketReadIndication(int socket, int length)
 
     err = socketRead(socket, length, readDest);
     if (err != LTE_SHIELD_ERROR_SUCCESS)
+    {
+        free(readDest);
         return err;
+    }
 
     if (_socketReadCallback != NULL)
     {
