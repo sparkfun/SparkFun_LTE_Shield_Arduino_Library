@@ -82,7 +82,8 @@ typedef enum
     LTE_SHIELD_ERROR_UNEXPECTED_PARAM,    // 3
     LTE_SHIELD_ERROR_UNEXPECTED_RESPONSE, // 4
     LTE_SHIELD_ERROR_NO_RESPONSE,         // 5
-    LTE_SHIELD_ERROR_DEREGISTERED         // 6
+    LTE_SHIELD_ERROR_DEREGISTERED,        // 6
+	LTE_SHEILD_ERROR_ERROR				  // 7
 } LTE_Shield_error_t;
 #define LTE_SHIELD_SUCCESS LTE_SHIELD_ERROR_SUCCESS
 
@@ -178,6 +179,8 @@ public:
     boolean begin(HardwareSerial &hardSerial, unsigned long baud = 9600);
 
     // Loop polling and polling setup
+	boolean bufferedPoll(void);
+	boolean processReadEvent(char* event);
     boolean poll(void);
     void setSocketReadCallback(void (*socketReadCallback)(int, String));
     void setSocketCloseCallback(void (*socketCloseCallback)(int));
@@ -283,13 +286,17 @@ public:
 
     // IP Transport Layer
     int socketOpen(lte_shield_socket_protocol_t protocol, unsigned int localPort = 0);
-    LTE_Shield_error_t socketClose(int socket, int timeout = 1000);
+    LTE_Shield_error_t socketClose(int socket, int timeout = 1000, boolean debug = false);
     LTE_Shield_error_t socketConnect(int socket, const char *address, unsigned int port);
     LTE_Shield_error_t socketWrite(int socket, const char *str);
     LTE_Shield_error_t socketWrite(int socket, String str);
+	LTE_Shield_error_t socketWriteUDP(int socket, const char *address, int port, const char *str, int len = -1);
+	LTE_Shield_error_t socketWriteUDP(int socket, String address, int port, String str, int len = -1);
     LTE_Shield_error_t socketRead(int socket, int length, char *readDest);
+	LTE_Shield_error_t socketReadUDP(int socket, int length, char *readDest);
     LTE_Shield_error_t socketListen(int socket, unsigned int port);
-    IPAddress lastRemoteIP(void);
+    int socketGetLastError();
+	IPAddress lastRemoteIP(void);
 
     // GPS
     typedef enum
@@ -366,21 +373,23 @@ private:
     LTE_Shield_error_t getMno(mobile_network_operator_t *mno);
 
     // Wait for an expected response (don't send a command)
-    LTE_Shield_error_t waitForResponse(const char *expectedResponse, uint16_t timeout);
+    LTE_Shield_error_t waitForResponse(const char *expectedResponse, const char *expectedError, uint16_t timeout);
 
     // Send command with an expected (potentially partial) response, store entire response
     LTE_Shield_error_t sendCommandWithResponse(const char *command, const char *expectedResponse,
                                                char *responseDest, unsigned long commandTimeout, boolean at = true);
 
     // Send a command -- prepend AT if at is true
-    boolean sendCommand(const char *command, boolean at);
+    int sendCommand(const char *command, boolean at);
 
     LTE_Shield_error_t parseSocketReadIndication(int socket, int length);
-    LTE_Shield_error_t parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP);
+    LTE_Shield_error_t parseSocketReadIndicationUDP(int socket, int length);
+	LTE_Shield_error_t parseSocketListenIndication(IPAddress localIP, IPAddress remoteIP);
     LTE_Shield_error_t parseSocketCloseIndication(String *closeIndication);
 
     // UART Functions
     size_t hwPrint(const char *s);
+	size_t hwWriteData(const char* buff, int len);
     size_t hwWrite(const char c);
     int readAvailable(char *inString);
     char readChar(void);
@@ -392,6 +401,8 @@ private:
     LTE_Shield_error_t autobaud(unsigned long desiredBaud);
 
     char *lte_calloc_char(size_t num);
+	
+	void pruneBacklog(void);
 };
 
 #endif //SPARKFUN_LTE_SHIELD_ARDUINO_LIBRARY_H
