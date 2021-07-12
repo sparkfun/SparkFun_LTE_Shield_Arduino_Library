@@ -1,7 +1,7 @@
 SparkFun LTE Shield Arduino Library
 ==============================
 
-[![SparkFun LTE CAT M1/NB-IoT Shield - SARA-R4](https://cdn.sparkfun.com/r/600-600/assets/parts/1/3/3/0/9/14997-SparkFun_LTE_CAT_M1_NB-IoT_Shield_-_SARA-R4-01.jpg)](https://www.sparkfun.com/products/14997)
+[![SparkFun LTE CAT M1/NB-IoT Shield - SARA-R4](https://cdn.sparkfun.com//assets/parts/1/3/3/0/9/14997-SparkFun_LTE_CAT_M1_NB-IoT_Shield_-_SARA-R4-01a.jpg)](https://www.sparkfun.com/products/14997)
 
 [*SparkFun LTE CAT M1/NB-IoT Shield - SARA-R4 (CEL-14997)*](https://www.sparkfun.com/products/14997)
 
